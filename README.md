@@ -31,6 +31,17 @@ cd ..
 colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --packages-select estimate_msgs livox_ros_driver livox_interfaces livox_ros_driver2 resple
 ```
 
+## Docker Build
+
+To build a docker image capable of running the examples and dataset:
+
+```bash
+cd ~/path/to/src
+git clone --recursive git@github.com:ASIG-X/RESPLE.git
+cd RESPLE
+docker build --ssh default --tag lidar_spline_filter .
+```
+
 ## Own experimental datasets ([LINK to SURFdrive](https://surfdrive.surf.nl/files/index.php/s/lfXfApqVXTLIS9l)) 
 Password: RESPLE2025
 
@@ -92,6 +103,59 @@ ros2 launch resple resple_heap_testsite_hoenggerberg.launch.py
 # Open another terminal and run
 source install/setup.bash
 ros2 bag play /path/to/hesai_livox_ap20_converted.mcap
+```
+
+### Docker
+
+With the docker image built (see docker build instructions), one can run the run the algorithm in a docker container by following these steps.
+
+Allow the docker user to generate graphics:
+```bash
+xhost +local:docker
+```
+
+Replacing `/path/to/data` with the location of the datasets, run the container (with mounted source code for development):
+```bash
+docker run -it -e DISPLAY=$DISPLAY \
+  -v .:/root/ros2_ws/src/RESPLE \
+  -v /tmp/.X11-unix/:/tmp/.X11-unix/ \
+  -v ~/data/resple_dataset/:/root/data/resple_dataset \
+  -v ~/data/grand_tour_box/datasets:/root/data/grand_tour_box/datasets \
+  --name lidar_spline_filter lidar_spline_filter
+```
+Note: To recompile inside the docker container run `colcon build --packages-select resple`. If no development is indended, then one can omit `-v .:/root/ros2_ws/src/RESPLE`.
+
+Replacing `<filename>` with the launch file from above, launch with:
+```bash
+ros2 launch resple <filename>.launch.py
+```
+
+Create a second terminal attached to the container with:
+```bash
+docker exec -it lidar_spline_filter bash
+```
+
+In this second container, replacing `<example>/<filename>` to make a valid bag filepath, play the dataset:
+```bash
+ros2 bag play ~/data/resple_dataset/<example>/
+```
+
+If the container is already run, then:
+* It can be removed with:
+```bash
+docker rm lidar_spline_filter
+```
+* It can be started with:
+```bash
+docker start lidar_spline_filter
+```
+* It can be be attached to with:
+```bash
+docker attach lidar_spline_filter
+```
+* It can be stopped with:
+```bash
+docker stop lidar_spline_filter
 ```
 
 ## Contributors
