@@ -48,7 +48,7 @@ Password: RESPLE2025
 ## Usage
 Parameters are explained in `resple/config/config_rcampus.yaml`. For LIO setting, change `if_lidar_only` in `resple/config/config_xxx.yaml` to `false`. 
 
-* HelmDyn dataset (Livox Mid360)
+* [HelmDyn](https://surfdrive.surf.nl/files/index.php/s/lfXfApqVXTLIS9l) dataset (Livox Mid360)
 ```
 source install/setup.bash
 ros2 launch resple resple_helmdyn01.launch.py
@@ -56,7 +56,7 @@ ros2 launch resple resple_helmdyn01.launch.py
 source install/setup.bash
 ros2 bag play /path/to/bag/
 ```
-* R-Campus dataset (Livox Avia)
+* [R-Campus](https://surfdrive.surf.nl/files/index.php/s/lfXfApqVXTLIS9l) dataset (Livox Avia)
 
 ```
 source install/setup.bash
@@ -66,7 +66,7 @@ source install/setup.bash
 ros2 bag play /path/to/bag/
 ```
 
-* NTU VIRAL dataset (OUSTER OS1-16)
+* [NTU VIRAL](https://ntu-aris.github.io/ntu_viral_dataset/) dataset (OUSTER OS1-16)
 ```
 source install/setup.bash
 ros2 launch resple resple_eee_02.launch.py
@@ -75,7 +75,7 @@ source install/setup.bash
 ros2 bag play /path/to/bag/
 ```
 
-* MCD dataset (Livox Mid70)
+* [MCD](https://mcdviral.github.io/) dataset (Livox Mid70)
 ```
 source install/setup.bash
 ros2 launch resple resple_ntu_day_01.launch.py
