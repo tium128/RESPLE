@@ -45,7 +45,7 @@ RUN --mount=type=bind,destination=$HOME/ros2_ws/src/lidarSplineFilter source /op
     livox_interfaces \
     livox_ros_driver2 \
     mocap4r2_msgs \
-    resse
+    resple
 
 # Add workspace to default source
 RUN echo "source $HOME/ros2_ws/install/setup.bash" >> $HOME/.bashrc
