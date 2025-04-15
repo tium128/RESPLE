@@ -18,9 +18,8 @@ Tested with [ROS2 Humble](https://docs.ros.org/en/humble/Installation.html) on U
 ```
 sudo apt install libomp-dev libpcl-dev libeigen3-dev
 sudo apt install ros-humble-pcl*
-sudo apt install ros-humble-rosbag2-storage-mcap
+# Optional: sudo apt install ros-humble-rosbag2-storage-mcap (for playing .mcap file if testing GrandTour dataset)
 ```
-Optional: [rosbag2_storage_mcap](https://docs.ros.org/en/humble/p/rosbag2_storage_mcap/#) (for playing .mcap file if testing GrandTour dataset)
 
 
 ### Compilation
