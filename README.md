@@ -31,15 +31,6 @@ cd ..
 colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --packages-select estimate_msgs livox_ros_driver livox_interfaces livox_ros_driver2 mocap4r2_msgs resple
 ```
 
-## Docker Build
-
-```
-cd ~/path/to/src
-git clone --recursive git@github.com:ASIG-X/RESPLE.git
-cd RESPLE
-docker build --ssh default --tag resple .
-```
-
 ## Own experimental datasets ([LINK to SURFdrive](https://surfdrive.surf.nl/files/index.php/s/lfXfApqVXTLIS9l)) 
 Password: RESPLE2025
 
@@ -101,21 +92,6 @@ ros2 launch resple resple_heap_testsite_hoenggerberg.launch.py
 # Open another terminal and run
 source install/setup.bash
 ros2 bag play /path/to/hesai_livox_ap20_converted.mcap
-```
-
-### Docker
-
-Replacing `/path/to/data` with the location of the datasets, and `<filename>` with the launch file from above:
-```
-docker run -it -e DISPLAY=$DISPLAY -v /tmp/.X11-unix/:/tmp/.X11-unix/ -v /path/to/data/resse_dataset/:/root/data/ resse_dataset/ --name resple resple
-ros2 launch resple <filename>.launch.py
-```
-Note: for development, one can additionally mount the source directory with `-v .:/root/ros2_ws/src/RESPLE` and recompile with `colcon build --packages-select resple`.
-
-In a second terminal, replacing `<example>/<filename>` to make a valid bag filepath:
-```
-docker exec -it resple bash
-ros2 bag play ~/data/resple_dataset/<example>/
 ```
 
 ## License
