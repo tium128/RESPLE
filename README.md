@@ -5,7 +5,7 @@
 </div>
 <br>
     
-This the offcial repository for RESPLE, the first B-spline-based recursive state estimation framework for estimating 6-DoF dynamic motions. Using RESPLE as the estimation backbone, we developed a unified suite of direct LiDAR-based odometry systems, including:
+This is the offcial repository for RESPLE, the first B-spline-based recursive state estimation framework for estimating 6-DoF dynamic motions. Using RESPLE as the estimation backbone, we developed a unified suite of direct LiDAR-based odometry systems, including:
 * LiDAR-only odometry (LO)
 * LiDAR-inertial odometry (LIO)
 * Multi-LiDAR odometry (MLO)
@@ -81,7 +81,7 @@ source install/setup.bash
 ros2 launch resple resple_eee_02.launch.py
 # Open another terminal and run
 source install/setup.bash
-ros2 bag play /path/to/hesai_livox_ap20_converted.mcap
+ros2 bag play /path/to/bag/
 ```
 
 * MCD dataset (Livox Mid70)
@@ -90,7 +90,7 @@ source install/setup.bash
 ros2 launch resple resple_ntu_day_01.launch.py
 # Open another terminal and run
 source install/setup.bash
-ros2 bag play /path/to/hesai_livox_ap20_converted.mcap
+ros2 bag play /path/to/bag/
 ```
   
 * GrandTour (Hesai XT32, Livox Mid360)
