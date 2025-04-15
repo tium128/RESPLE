@@ -94,5 +94,15 @@ source install/setup.bash
 ros2 bag play /path/to/hesai_livox_ap20_converted.mcap
 ```
 
+## Contributors
+Ziyu Cao (Email: ziyu.cao@liu.se)
+
+William Talbot (Email: wtalbot@ethz.ch)
+
+Kailai Li (Email: kailai.li@rug.nl)
+
+## Credits
+Thanks for [ikd-Tree](https://github.com/hku-mars/ikd-Tree), [FAST-LIO](https://github.com/hku-mars/FAST_LIO), [Livox-SDK](https://github.com/Livox-SDK), and [basalt](https://gitlab.com/VladyslavUsenko/basalt).
+
 ## License
 The source code is released under [GPLv3](https://www.gnu.org/licenses/) license.
