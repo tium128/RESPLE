@@ -28,7 +28,7 @@ Optional: [rosbag2_storage_mcap](https://docs.ros.org/en/humble/p/rosbag2_storag
 cd ~/ros2_ws/src
 git clone --recursive git@github.com:ASIG-X/RESPLE.git
 cd ..
-colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --packages-select estimate_msgs livox_ros_driver livox_interfaces livox_ros_driver2 mocap4r2_msgs resple
+colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --packages-select estimate_msgs livox_ros_driver livox_interfaces livox_ros_driver2 resple
 ```
 
 ## Own experimental datasets ([LINK to SURFdrive](https://surfdrive.surf.nl/files/index.php/s/lfXfApqVXTLIS9l)) 
@@ -37,7 +37,7 @@ Password: RESPLE2025
 **HelmDyn (Helm Dynamic) dataset**
 * 1 Livox Mid360 mounted on a helmet as a mobile platform
 * 10 sequences recorded with very dynamic motions combining walking, running, jumping, and in-hand waving within a cubic space   
-* Ground truth trajectoryrecorded using a high-precision (submillimeter), low-latency motion capture system (Qualisys) invovling 20 cameras
+* Ground truth trajectory recorded using a high-precision (submillimeter), low-latency motion capture system (Qualisys) invovling 20 cameras
 
 **R-Campus dataset**
 * 1 Livox Avia mounted on a bipedal wheeled robot (Direct Drive DIABLO)
@@ -46,7 +46,7 @@ Password: RESPLE2025
 
 
 ## Usage
-Parameters are explained in `resple/config/config_rcampus.yaml`. For LIO setting, change `if_lidar_only` in `resple/config/config_xxx.yaml` to `false`. 
+For LIO use, change `if_lidar_only` in `resple/config/config_xxx.yaml` to `false`. 
 
 * [HelmDyn](https://surfdrive.surf.nl/files/index.php/s/lfXfApqVXTLIS9l) dataset (Livox Mid360)
 ```
