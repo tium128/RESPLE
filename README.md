@@ -8,7 +8,16 @@ This is the offcial repository for RESPLE, the first B-spline-based recursive st
 * Multi-LiDAR-inertial Odometry (MLIO)
 
 These four variants have been tested in real-world datasets and our own experiments, covering aerial, wheeled, legged, and wearable platforms operating in indoor, urban, wild environments with diverse LiDAR types. We look forward to your comments and feedback! 
- 
+
+### BibTex Citation
+```
+@ARTICLE{cao2025resple,
+  author={Cao, Ziyu and Talbot, William and Li, Kailai},
+  title={RESPLE: Recursive Spline Estimation for LiDAR-Based Odometry}, 
+  journal={arXiv preprint arXiv:2504.11580},
+  year={2025}
+}
+``` 
 ### Dependencies
 Tested with [ROS2 Humble](https://docs.ros.org/en/humble/Installation.html) on Ubuntu 22.04
 ```
