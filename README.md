@@ -1,5 +1,5 @@
 # RESPLE: Recursive Spline Estimation for LiDAR-Based Odometry
-[**YouTube**](https://youtu.be/3-xLRRT25ys) | **[Paper](https://github.com/ASIG-X/RESPLE/blob/main/RESPLE_Paper.pdf)** | **arXiv** | **Website**
+[**YouTube**](https://youtu.be/3-xLRRT25ys) | **[arXiv](https://arxiv.org/abs/2504.11580)** | **Website**
 
 This is the offcial repository for RESPLE, the first B-spline-based recursive state estimation framework for estimating 6-DoF dynamic motions. Using RESPLE as the estimation backbone, we developed a unified suite of direct LiDAR-based odometry systems, including:
 * LiDAR-only odometry (LO)
