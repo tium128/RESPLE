@@ -49,6 +49,14 @@ docker build --ssh default --tag lidar_spline_filter .
 ## Own experimental datasets ([LINK to SURFdrive](https://surfdrive.surf.nl/files/index.php/s/lfXfApqVXTLIS9l)) 
 Password: RESPLE2025
 
+<!-- ![image](doc/real_experiment2.gif) -->
+<!-- [![Watch the video](doc/real_exp_2.png)](https://youtu.be/2OvjGnxszf8) -->
+<div align="left">
+<img src="doc/hemdyn_clip.gif" width=49.6% />
+<img src="doc/Rcampus_clip.gif" width = 49.6% >
+</div>
+<br>
+
 **HelmDyn (Helm Dynamic) dataset**
 * 1 Livox Mid360 mounted on a helmet as a mobile platform
 * 10 sequences recorded with very dynamic motions combining walking, running, jumping, and in-hand waving within a cubic space   
