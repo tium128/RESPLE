@@ -178,7 +178,7 @@ William Talbot (Email: wtalbot@ethz.ch)
 Kailai Li (Email: kailai.li@rug.nl)
 
 ## Credits
-Thanks for [ikd-Tree](https://github.com/hku-mars/ikd-Tree), [FAST-LIO](https://github.com/hku-mars/FAST_LIO), [Livox-SDK](https://github.com/Livox-SDK), and [basalt](https://gitlab.com/VladyslavUsenko/basalt).
+Thanks for [SFUISE](https://github.com/ASIG-X/SFUISE), [ikd-Tree](https://github.com/hku-mars/ikd-Tree), [FAST-LIO](https://github.com/hku-mars/FAST_LIO), [Livox-SDK](https://github.com/Livox-SDK), and [basalt](https://gitlab.com/VladyslavUsenko/basalt).
 
 ## License
 The source code is released under [GPLv3](https://www.gnu.org/licenses/) license.
