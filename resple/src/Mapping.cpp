@@ -22,6 +22,7 @@
 #include "estimate_msgs/msg/calib.hpp"
 #include "estimate_msgs/msg/estimate.hpp"
 #include "SplineState.h"
+#include <sensor_msgs/point_cloud2_iterator.hpp>
 
 template<typename PointType>
 class MappingBase
@@ -409,6 +410,69 @@ class Mid360BoxiBuff : public MappingBase<pcl::PointXYZINormal>
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pc_subscription_mid360;
 };
 
+// -----------------------------------------------------------------------------
+//                Support offline Robosense Airy 96 (XYZRT bags)
+// -----------------------------------------------------------------------------
+class Airy96Buff : public MappingBase<pcl::PointXYZINormal>
+{
+public:
+  Airy96Buff(rclcpp::Node::SharedPtr &nh, const LidarConfig& lidar_config)
+    : MappingBase<pcl::PointXYZINormal>(nh, lidar_config)
+  {
+    pc_subscription_airy = nh->create_subscription<sensor_msgs::msg::PointCloud2>(
+        this->lidar.topic, 100,
+        std::bind(&Airy96Buff::airyLidarCallback, this, std::placeholders::_1));
+  }
+
+  void airyLidarCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
+  {
+    // 1) Prépare le conteneur
+    this->pc_last->clear();
+    size_t N = msg->width * msg->height;
+    this->pc_last->reserve(N);
+
+    // 2) Itérateurs sur XYZRT
+    sensor_msgs::PointCloud2ConstIterator<float>    it_x(*msg, "x");
+    sensor_msgs::PointCloud2ConstIterator<float>    it_y(*msg, "y");
+    sensor_msgs::PointCloud2ConstIterator<float>    it_z(*msg, "z");
+    sensor_msgs::PointCloud2ConstIterator<uint16_t> it_ring(*msg, "ring");
+    sensor_msgs::PointCloud2ConstIterator<uint64_t> it_time(*msg, "timestamp");
+
+    int64_t t0 = rclcpp::Time(msg->header.stamp).nanoseconds();
+    // 3) Remplissage du pcl::PointCloud<pcl::PointXYZINormal>
+    for (size_t i = 0; i < N; ++i, ++it_x, ++it_y, ++it_z, ++it_ring, ++it_time) {
+      pcl::PointXYZINormal pt;
+      pt.x         = *it_x;
+      pt.y         = *it_y;
+      pt.z         = *it_z;
+      // stocke offset (ns→ms) dans intensity
+      pt.intensity = float(*it_time) * 1e-6f;
+      // stocke ring dans curvature
+      pt.curvature = float(*it_ring);
+      this->pc_last->points.push_back(pt);
+    }
+
+    // 4) Header et filtrage
+    this->pc_last->header.frame_id = this->frame_id;
+    this->pc_last->header.stamp    = t0;
+    std::vector<int> idx;
+    pcl::removeNaNFromPointCloud(*this->pc_last, *this->pc_last, idx);
+    if (this->pc_last->empty()) return;
+    ds_filter_each_scan.setInputCloud(pc_last);
+    this->pc_last_ds->clear();
+    ds_filter_each_scan.filter(*this->pc_last_ds);
+    pc_last_ds->header = this->pc_last->header;
+
+    // 5) Buffer pour MappingBase
+    std::lock_guard<std::mutex> lk(mtx);
+    this->pc_L_buff.push_back(*pc_last_ds);
+  }
+
+private:
+  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pc_subscription_airy;
+};
+
+
 class Mapping
 {
 
@@ -614,7 +678,9 @@ int main(int argc, char** argv) {
             buffs.push_back(new HesaiBuff(nh, lidar));
         } else if (!lidar.type.compare("Mid360Boxi")) {
             buffs.push_back(new Mid360BoxiBuff(nh, lidar));
-        } else {
+        } else if (!lidar.type.compare("Airy96")) {
+            buffs.push_back(new Airy96Buff(nh, lidar));
+        }else {
             exit(1);
         }
     }

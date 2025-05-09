@@ -25,6 +25,8 @@
     # Décalage temporel du scan LiDAR (en secondes)
     lidar_time_offset: 0.0
 
+    # Paramètres supplémentaires pour traitement offline
+    bag_file: "$(env BAG_FILE)"    # chemin vers le fichier .bag (override via env BAG_FILE ou CLI -p)
     # Paramètres généraux de RESPLe
     knot_hz: 100
     if_lidar_only: true
