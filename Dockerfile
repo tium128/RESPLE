@@ -1,70 +1,64 @@
 # ROS base
 FROM osrf/ros:humble-desktop-full
 
-# Choose bash shell
+# Use bash for RUN commands
 SHELL ["/bin/bash", "-c"]
-
-# Environment Variables
+ENV DEBIAN_FRONTEND=noninteractive
 ENV HOME=/root
 
-# Update apt
-RUN apt update
-
-# Install git and SSH client
-RUN apt install -y git openssh-client \
-    # PCL natif pour RESPLe
+# Install system and ROS dependencies in one layer
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    openssh-client \
     libpcl-dev \
-    # Conversions et messages PCL pour ROS 2
     ros-humble-pcl-conversions \
     ros-humble-pcl-msgs \
-    # SDK RoboSense pour Airy 96
-    ros-humble-rslidar-sdk
-
-# Add public github and bitbucket keys
-#RUN mkdir -p -m 0600 $HOME/.ssh
-#RUN ssh-keyscan github.com >> $HOME/.ssh/known_hosts
-#RUN ssh-keyscan bitbucket.org >> $HOME/.ssh/known_hosts
-
-# Install system dependencies
-RUN apt update && apt install -y \
     libeigen3-dev \
     libomp-dev \
-    libpcl-dev \
-    ros-humble-pcl*
+    libpcap-dev \
+    x11-apps \
+    qtbase5-dev \
+    qt5-qmake \
+    libqt5gui5 \
+    qtwayland5 \
+    libqt5waylandclient5 \
+    libqt5waylandcompositor5 \
+    ros-humble-rosbag2-storage-mcap \
+    gdb \
+    gdbserver \
+  && rm -rf /var/lib/apt/lists/*
 
-# Install mcap support
-RUN apt install -y ros-humble-rosbag2-storage-mcap
-
-# Install gdb support
-RUN apt install -y gdb gdbserver
-
-# 1) Dépendances Qt + Wayland + xeyes pour test X11 éventuel
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      # libs LiDAR, ROS, etc. ici… \
-      qtbase5-dev qt5-qmake libqt5gui5 \
-      qtwayland5 libqt5waylandclient5 libqt5waylandcompositor5 \
-      x11-apps \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create ROS2 Workspace
-RUN mkdir -p $HOME/ros2_ws/src
-
-# Build workspace packages, mounting only for the build
+# Create ROS2 workspace
 WORKDIR $HOME/ros2_ws
-RUN --mount=type=bind,destination=$HOME/ros2_ws/src/lidarSplineFilter source /opt/ros/humble/setup.bash && \
-    colcon build \
-    --cmake-args -DCMAKE_BUILD_TYPE=Release \
-    --packages-select \
-    estimate_msgs \
-    livox_ros_driver \
-    livox_interfaces \
-    livox_ros_driver2 \
-    mocap4r2_msgs \
-    resple
+RUN mkdir -p src
 
- # Expose a volume for your bags (à monter au runtime)
- VOLUME ["/bags"]
+# Use default branch (usually "main") for both repos
+WORKDIR $HOME/ros2_ws/src
+RUN git clone https://github.com/RoboSense-LiDAR/rslidar_msg.git && \
+    git clone https://github.com/RoboSense-LiDAR/rslidar_sdk.git && \
+    # Clone ROS2 driver inside the SDK tree so CMake can find it
+    mkdir -p rslidar_sdk/src && \
+    git clone https://github.com/RoboSense-LiDAR/rs_driver.git rslidar_sdk/src/rs_driver
 
-# Add workspace to default source
+# Copy local RESPLE packages into workspace
+# This will copy your local ROS packages into the src folder.
+# Adjust the path if your packages live elsewhere.
+COPY . $HOME/ros2_ws/src/
+
+# Copy local RESPLE packages into workspace (your code including CommonUtils.h)
+WORKDIR $HOME/ros2_ws/src
+COPY . .
+
+# Build the entire workspace
+RUN source /opt/ros/humble/setup.bash && \
+    colcon build --symlink-install \
+      --cmake-args -DCMAKE_BUILD_TYPE=Release
+
+# Expose a volume for ROS bag files
+VOLUME ["/bags"]
+
+# Source workspace on shell startup
 RUN echo "source $HOME/ros2_ws/install/setup.bash" >> $HOME/.bashrc
 
+# Default entrypoint: launch RESPLE
+ENTRYPOINT ["/bin/bash", "-lc", "source /opt/ros/humble/setup.bash && source $HOME/ros2_ws/install/setup.bash && ros2 launch resple resple.launch.py"]

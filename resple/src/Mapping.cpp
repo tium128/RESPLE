@@ -8,9 +8,6 @@
 #include <string>
 #include <sensor_msgs/msg/point_cloud.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
-#include <pcl/point_types.h>              // pour pcl::PointXYZIRT et pcl::PointXYZINormal
-#include "CommonUtils.h"                  // pour readParam
-#include "MappingBase.h" 
 #include <nav_msgs/msg/path.hpp>
 #include <std_msgs/msg/int64.hpp>
 #include <nav_msgs/msg/odometry.hpp>
@@ -412,75 +409,6 @@ class Mid360BoxiBuff : public MappingBase<pcl::PointXYZINormal>
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pc_subscription_mid360;
 };
 
-class RobosenseBuff : public MappingBase<pcl::PointXYZINormal> {
-    public:
-      RobosenseBuff(rclcpp::Node::SharedPtr &nh, const LidarConfig& cfg)
-        : MappingBase<pcl::PointXYZINormal>(nh, cfg)
-      {
-        rclcpp::QoS qos(rclcpp::KeepLast(10));
-        qos.reliable();
-    
-        // On ne fait que souscrire ici :
-        pc_subscription_ = nh->create_subscription<sensor_msgs::msg::PointCloud2>(
-          this->lidar.topic, qos,
-          std::bind(&RobosenseBuff::callback, this, std::placeholders::_1));
-    
-        // Lecture du décalage temporel de façon purement déclarative
-        double offset_s = CommonUtils::readParam<double>(nh, "lidar_time_offset", 0.0);
-        time_offset_ns_ = static_cast<int64_t>(offset_s * 1e9);
-      }
-    
-      // Voilà la VRAIE méthode qui sera appelée à chaque message
-      void callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
-        // --- Conversion ROS→PCL en XYZIRT ---
-        pcl::PointCloud<pcl::PointXYZIRT>::Ptr pc_in(new pcl::PointCloud<pcl::PointXYZIRT>());
-        pcl::fromROSMsg(*msg, *pc_in);
-    
-        size_t sz = pc_in->points.size();
-        if (sz == 0) return;
-    
-        auto pc_filtered = boost::make_shared<pcl::PointCloud<pcl::PointXYZINormal>>();
-        pc_filtered->reserve(sz);
-    
-        int64_t t0_ns = msg->header.stamp.nanoseconds();
-        static int64_t last_t_ns = t0_ns;
-        int64_t max_ofs_ns = 0;
-    
-        float blind      = lidar.blind;
-        int   decimation = point_filter_num;
-    
-        for (size_t i = 0; i < sz; ++i) {
-          const auto& in = pc_in->points[i];
-          if (i % decimation) continue;
-          double dist2 = in.x*in.x + in.y*in.y + in.z*in.z;
-          if (dist2 <= blind*blind) continue;
-    
-          int64_t ofs_ns = static_cast<int64_t>(in.timestamp * 1e3);
-          int64_t cur_t_ns = t0_ns + ofs_ns;
-          if (cur_t_ns <= last_t_ns) continue;
-    
-          pcl::PointXYZINormal pt;
-          pt.x = in.x; pt.y = in.y; pt.z = in.z;
-          pt.intensity = double(ofs_ns) * 1e-9;
-          pt.curvature = in.intensity;
-    
-          pc_filtered->points.push_back(pt);
-          max_ofs_ns = std::max(max_ofs_ns, ofs_ns);
-        }
-        last_t_ns = t0_ns + max_ofs_ns;
-    
-        // 4) Push sous mutex
-        auto& data = lidars_data.at(lidar.type);
-        std::lock_guard<std::mutex> lock(data.mtx_pc);
-        data.pc_buff.push_back(pc_filtered->points);
-        data.t_buff.push_back(t0_ns + time_offset_ns_);
-      }
-    
-    private:
-      rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pc_subscription_;
-      int64_t time_offset_ns_;
-    };
-
 class Mapping
 {
 
@@ -686,8 +614,6 @@ int main(int argc, char** argv) {
             buffs.push_back(new HesaiBuff(nh, lidar));
         } else if (!lidar.type.compare("Mid360Boxi")) {
             buffs.push_back(new Mid360BoxiBuff(nh, lidar));
-        } else if (!lidar.type.compare("Airy96")) {
-            buffs.push_back(new RobosenseBuff(nh, lidar));
         } else {
             exit(1);
         }
