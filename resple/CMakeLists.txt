@@ -20,8 +20,14 @@ find_package(livox_ros_driver2 REQUIRED)
 find_package(estimate_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(ament_lint_auto REQUIRED)
+
+# Dépendances PCL et conversions
 find_package(PCL REQUIRED)
 find_package(pcl_conversions REQUIRED)
+
+# SDK RoboSense
+find_package(rslidar_sdk REQUIRED)
+
 find_package(tf2_ros REQUIRED)
 find_package(OpenMP REQUIRED)
 include(FindOpenMP)
@@ -29,52 +35,66 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
+
+# Bibliothèque interne
 add_library(${PROJECT_NAME}
     src/Mapping.cpp
-	src/RESPLE.cpp
+    src/RESPLE.cpp
 )
+
 ament_lint_auto_find_test_dependencies()
+
 include_directories(
-	include
-	${EIGEN3_INCLUDE_DIR}
-	${PCL_INCLUDE_DIRS})
+  include
+  ${EIGEN3_INCLUDE_DIR}
+  ${PCL_INCLUDE_DIRS}
+)
+
+# Exécutables
 add_executable(Mapping src/Mapping.cpp)
 add_executable(RESPLE src/RESPLE.cpp include/ikd-Tree/ikd_Tree.cpp)
-	ament_target_dependencies(${PROJECT_NAME} 
-	rclcpp
-	std_msgs
-	geometry_msgs
-	nav_msgs
-	sensor_msgs
-	visualization_msgs
-	std_srvs
-	livox_interfaces
-	livox_ros_driver
-	livox_ros_driver2
-	estimate_msgs
-	pcl_conversions
-	ament_lint_auto
-	tf2_ros
+
+# Dépendances des cibles
+ament_target_dependencies(${PROJECT_NAME}
+  rclcpp
+  std_msgs
+  geometry_msgs
+  nav_msgs
+  sensor_msgs
+  visualization_msgs
+  std_srvs
+  livox_interfaces
+  livox_ros_driver
+  livox_ros_driver2
+  estimate_msgs
+  pcl_conversions
+  pcl_msgs
+  rslidar_sdk
+  tf2_ros
+  ament_lint_auto
 )
+
 target_link_libraries(RESPLE
-		${PROJECT_NAME}
-		${PCL_LIBRARIES}
-		${YAML_CPP_LIBRARIES}
-		${OpenMP_LIBS}
+  ${PROJECT_NAME}
+  ${PCL_LIBRARIES}
+  ${YAML_CPP_LIBRARIES}
+  ${OpenMP_LIBS}
 )
+
 target_link_libraries(Mapping
-		${PROJECT_NAME}
-		${PCL_LIBRARIES}
-		${YAML_CPP_LIBRARIES}
+  ${PROJECT_NAME}
+  ${PCL_LIBRARIES}
+  ${YAML_CPP_LIBRARIES}
 )
+
+# Installation
 install(DIRECTORY launch
   DESTINATION share/${PROJECT_NAME})
 install(DIRECTORY config
   DESTINATION share/${PROJECT_NAME})
-install(TARGETS RESPLE
+install(TARGETS RESPLE Mapping
   DESTINATION lib/${PROJECT_NAME})
-install(TARGETS Mapping
-  DESTINATION lib/${PROJECT_NAME})
-ament_export_dependencies(rclcpp yaml-cpp message_runtime livox_ros_driver livox_ros_driver2 livox_interfaces)
+
+ament_export_dependencies(rclcpp yaml-cpp message_runtime livox_ros_driver livox_ros_driver2 livox_interfaces rslidar_sdk)
 ament_export_libraries(${PROJECT_NAME})
 ament_package()

@@ -11,7 +11,14 @@ ENV HOME=/root
 RUN apt update
 
 # Install git and SSH client
-RUN apt install -y git openssh-client
+RUN apt install -y git openssh-client \
+    # PCL natif pour RESPLe
+    libpcl-dev \
+    # Conversions et messages PCL pour ROS 2
+    ros-humble-pcl-conversions \
+    ros-humble-pcl-msgs \
+    # SDK RoboSense pour Airy 96
+    ros-humble-rslidar-sdk
 
 # Add public github and bitbucket keys
 RUN mkdir -p -m 0600 $HOME/.ssh
@@ -46,6 +53,9 @@ RUN --mount=type=bind,destination=$HOME/ros2_ws/src/lidarSplineFilter source /op
     livox_ros_driver2 \
     mocap4r2_msgs \
     resple
+
+ # Expose a volume for your bags (à monter au runtime)
+ VOLUME ["/bags"]
 
 # Add workspace to default source
 RUN echo "source $HOME/ros2_ws/install/setup.bash" >> $HOME/.bashrc

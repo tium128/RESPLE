@@ -12,23 +12,49 @@
   <maintainer email="kailai.li@rug.nl">Kailai Li</maintainer>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- Dépendances de build -->
   <build_depend>builtin_interfaces</build_depend>
-  <depend>rclcpp</depend>
-  <depend>yaml-cpp</depend>
-  <depend>std_msgs</depend>
-  <depend>nav_msgs</depend>
-  <depend>geometry_msgs</depend>
-  <depend>visualization_msgs</depend>
-  <depend>message_runtime</depend>
-  <depend>livox_ros_driver</depend>  
-  <depend>livox_ros_driver2</depend>
-  <depend>livox_interfaces</depend>
-  <depend>estimate_msgs</depend>
+  <build_depend>rclcpp</build_depend>
+  <build_depend>yaml-cpp</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>nav_msgs</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>visualization_msgs</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>std_srvs</build_depend>
+  <build_depend>livox_interfaces</build_depend>
+  <build_depend>livox_ros_driver</build_depend>
+  <build_depend>livox_ros_driver2</build_depend>
+  <build_depend>estimate_msgs</build_depend>
+  <!-- Ajouté pour PCL et conversions -->
+  <build_depend>pcl_conversions</build_depend>
+  <build_depend>pcl_msgs</build_depend>
+  <!-- Ajouté pour le SDK RoboSense -->
+  <build_depend>rslidar_sdk</build_depend>
+
+  <!-- Dépendances d’exécution -->
+  <exec_depend>builtin_interfaces</exec_depend>
+  <exec_depend>rclcpp</exec_depend>
+  <exec_depend>yaml-cpp</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>visualization_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+  <exec_depend>livox_interfaces</exec_depend>
+  <exec_depend>livox_ros_driver</exec_depend>
+  <exec_depend>livox_ros_driver2</exec_depend>
+  <exec_depend>estimate_msgs</exec_depend>
+  <exec_depend>pcl_conversions</exec_depend>
+  <exec_depend>pcl_msgs</exec_depend>
+  <exec_depend>rslidar_sdk</exec_depend>
 
   <test_depend>ament_lint_common</test_depend>
-  <test_depend>ament_lint_auto</test_depend>  
-  <exec_depend>builtin_interfaces</exec_depend>  
+  <test_depend>ament_lint_auto</test_depend>
+
   <export>
     <build_type>ament_cmake</build_type>
-  </export>  
+  </export>
 </package>
