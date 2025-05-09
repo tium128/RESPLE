@@ -14,9 +14,9 @@ RUN apt update
 RUN apt install -y git openssh-client
 
 # Add public github and bitbucket keys
-RUN mkdir -p -m 0600 $HOME/.ssh
-RUN ssh-keyscan github.com >> $HOME/.ssh/known_hosts
-RUN ssh-keyscan bitbucket.org >> $HOME/.ssh/known_hosts
+#RUN mkdir -p -m 0600 $HOME/.ssh
+#RUN ssh-keyscan github.com >> $HOME/.ssh/known_hosts
+#RUN ssh-keyscan bitbucket.org >> $HOME/.ssh/known_hosts
 
 # Install system dependencies
 RUN apt update && apt install -y \
@@ -30,6 +30,14 @@ RUN apt install -y ros-humble-rosbag2-storage-mcap
 
 # Install gdb support
 RUN apt install -y gdb gdbserver
+
+# 1) Dépendances Qt + Wayland + xeyes pour test X11 éventuel
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      # libs LiDAR, ROS, etc. ici… \
+      qtbase5-dev qt5-qmake libqt5gui5 \
+      qtwayland5 libqt5waylandclient5 libqt5waylandcompositor5 \
+      x11-apps \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create ROS2 Workspace
 RUN mkdir -p $HOME/ros2_ws/src
