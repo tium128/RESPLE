@@ -1,0 +1,49 @@
+1. Configurer le driver RoboSense pour XYZIRT
+Dans le fichier de configuration du SDK (rslidar_sdk/config/config.yaml), ajoutez ou modifiez le paramètre qui définit le type de point à publier. Selon la version du SDK, ça peut s’appeler point_format ou point_type. Par exemple :
+
+common:
+  msg_source: 3            # PCAP
+  pcap_directory: /home/user/airy96.pcap
+
+lidar:
+  - driver:
+      lidar_type: RSAIRY
+      point_type: XYZIRT   # <— passez à XYZIRT pour inclure ring et timestamp
+      msop_port: 6699
+      difop_port: 7788
+      imu_port: 6688
+    ros:
+      ros_frame_id: airy96
+      ros_send_point_cloud_topic: /airsense/points
+
+
+
+
+1. Dans votre shell WSL, avant tout
+bash
+Copy
+Edit
+# Forcez DISPLAY sur :0 (socket local), pas l'IP 10.255…
+export DISPLAY=:0
+
+# Autorisez les clients Docker à se connecter au XWayland
+xhost +local:docker
+Si xhost +local:docker échoue encore, assurez-vous bien que vous avez exporté DISPLAY=:0 avant de l’appeler.
+
+2. Lancement du container en mode X11
+bash
+Copy
+Edit
+docker run --rm -it \
+  --network host \
+  -e DISPLAY=$DISPLAY \
+  -e QT_QPA_PLATFORM=xcb \
+  -e QT_X11_NO_MITSHM=1 \
+  -v /tmp/.X11-unix:/tmp/.X11-unix \
+  lidar_spline_filter \
+  rviz2 -d /root/ros2_ws/install/resple/share/resple/config/config.rviz
+-e DISPLAY=$DISPLAY → :0, le socket /tmp/.X11-unix/X0 de WSLg
+
+-v /tmp/.X11-unix:/tmp/.X11-unix → accès direct au socket XWayland
+
+QT_QPA_PLATFORM=xcb + QT_X11_NO_MITSHM=1 → plugin XCB sans MIT-SHM
