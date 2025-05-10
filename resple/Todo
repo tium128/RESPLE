@@ -67,7 +67,32 @@ bash
 Copy
 Edit
 ros2 run resple resple_node --ros-args \
-  -p ros__parameters.bag_file:="/bags/2025-05-10_test.bag" \
+  -p ros__parameters.bag_file:="/bags/mon_bag_20250510_084353" \
   -p ros__parameters.use_sim_time:=true \
   -p ros__parameters.processing_mode:=offline
 Ainsi, vous n’avez plus qu’à passer BAG_FILE (ou -p bag_file:=...) au lancement, sans toucher au YAML.
+
+
+
+Lancement conteneur dans un terminal avec montage du répertoire du Bag:
+Pour éviter l’erreur sur setup.bash ET monter ton volume /bags, tu peux complètement court-circuiter l’ENTRYPOINT qui sourçait ce fichier manquant et monter en bind-mount ton dossier de bagues :
+
+bash
+Copy
+Edit
+docker run --rm -it \
+  --entrypoint /bin/bash \
+  --network host \
+  -e DISPLAY=$DISPLAY \
+  -e QT_QPA_PLATFORM=xcb \
+  -e QT_X11_NO_MITSHM=1 \
+  -v /tmp/.X11-unix:/tmp/.X11-unix \
+  -v /mnt/c/Geoslam_workflow/:/Bag \
+  lidar_spline_filter
+Explications :
+
+--entrypoint /bin/bash
+Remplace complètement l’ENTRYPOINT défini dans l’image par un shell bash, donc il n’essaie pas de sourcer /root/ros2_ws/install/setup.bash au démarrage.
+
+-v /mnt/c/Geoslam_workflow/RESPLE/bags:/bags
+Monte ton dossier bags Windows (ou n’importe quel chemin hôte) dans le conteneur sous /bags, en respectant le VOLUME ["/bags"] que tu as défini

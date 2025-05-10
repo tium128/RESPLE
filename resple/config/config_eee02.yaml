@@ -1,73 +1,40 @@
-## Configuration YAML pour RESPLe (offline) avec Robosense Airy96
-# Basé sur le format des configs RESPLe originales (config_airy96.yaml, config_eee02.yaml)
-# Traitement offline d'un bag ROS enregistré avec le lidar Robosense Airy96
+/**:
+  ros__parameters:
+    topic_imu: /imu/imu
+    acc_ratio: false  
+    lidars: ["Ouster"]
+    Ouster:
+      topic_lidar: /os1_cloud_node1/points
+      lidar_type: Ouster
+      scan_line: 16
+      blind: 4.0
+      q_lb: [1.0, 0.0, 0.0, 0.0]      
+      t_lb: [0.05, 0.0, -0.055]    
+      w_pt: 0.01 
+    lidar_time_offset: 0.1
 
-ros__parameters:
-  # Utiliser le temps simulé ( nécessaire pour replay du bag avec --clock )
-  use_sim_time: true
+    knot_hz: 100
+    if_lidar_only: true  
+    
+    ds_scan_voxel: 0.5
+    point_filter_num: 3
+    nn_thresh: 0.5
+    coeff_cov: 3.0
+    num_nn: 8
 
-  # IMU (optionnel si vous enregistrez l’IMU du Airy96)
-  topic_imu: /imu/imu
-  acc_ratio: false
+    ds_lm_voxel: 0.5
+    cube_len: 1000.0
 
-  # Liste des LiDARs à traiter
-  lidars: ["Airy96"]
-
-  # Paramètres spécifiques à l’Airy96
-  Airy96:
-    # Topic ROS où sont publiés les nuages de points
-    topic_lidar: /airsense/points
-    lidar_type: Airy96          # étiquette interne
-    scan_line: 96               # nombre total de faisceaux
-    fov_up: 90.0                # FOV vertical supérieur (°)
-    fov_down: 0.0               # FOV vertical inférieur (°)
-    rotation_rate: 10.0         # vitesse de rotation (Hz)
-    resolution_h: 0.4           # résolution angulaire horizontale (°)
-    resolution_v: 0.947         # résolution angulaire verticale (°)
-    blind: 0.5                  # distance minimale pour filtrage (m)
-    q_lb: [1.0, 0.0, 0.0, 0.0]   # quaternion boîtier→LiDAR
-    t_lb: [0.0, 0.0, 0.0]        # translation boîtier→LiDAR (m)
-    w_pt: 0.01                  # poids pour motion‐compensation
-
-  # Décalage temporel du scan LiDAR (en secondes)
-  lidar_time_offset: 0.0
-
-  # Paramètres supplémentaires pour traitement offline
-  bag_file: "bags/2025-05-10_airy96_test.bag"    # chemin vers le fichier .bag à traiter
-  processing_mode: offline                       # mode: 'offline' pour traitement de bag
-
-  # Paramètres généraux de RESPLe
-  knot_hz: 100
-  if_lidar_only: true
-
-  # Sous-échantillonnage et filtrage des scans
-  ds_scan_voxel: 0.5
-  point_filter_num: 3
-
-  # Seuillage et covariance
-  nn_thresh: 0.5
-  coeff_cov: 3.0
-  num_nn: 8
-
-  # Extraction de landmarks
-  ds_lm_voxel: 0.5
-  cube_len: 1000.0
-
-  # Paramètres de covariance initiale et système
-  cov_P0: 0.02
-  cov_RCP_pos_old: 0.1
-  cov_RCP_ort_old: 0.1
-  cov_RCP_pos_new: 1.0
-  cov_RCP_ort_new: 1.0
-  std_sys_pos: 0.2
-  std_sys_ort: 0.1
-
-  # Bruit IMU et biais
-  cov_acc: [1.0, 1.0, 1.0]
-  cov_gyro: [0.1, 0.1, 0.1]
-  cov_ba: [0.2, 0.2, 0.2]
-  cov_bg: [0.2, 0.2, 0.2]
-
-  # Itérations et mise à jour
-  n_iter: 1
-  num_points_upd: 500
+    cov_P0: 0.02
+    cov_RCP_pos_old: 0.1
+    cov_RCP_ort_old: 0.1
+    cov_RCP_pos_new: 1.0
+    cov_RCP_ort_new: 1.0
+    std_sys_pos: 0.2
+    std_sys_ort: 0.1
+    cov_acc: [1.0,1.0,1.0]
+    cov_gyro: [0.1,0.1,0.1]     
+    cov_ba: [0.2, 0.2, 0.2]
+    cov_bg: [0.2, 0.2, 0.2]      
+    n_iter: 1   
+    num_points_upd: 500

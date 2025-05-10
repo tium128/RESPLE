@@ -58,7 +58,8 @@ RUN source /opt/ros/humble/setup.bash && \
 VOLUME ["/bags"]
 
 # Source workspace on shell startup
-RUN echo "source $HOME/ros2_ws/install/setup.bash" >> $HOME/.bashrc
+RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc && \
+    echo "source /root/ros2_ws/install/setup.bash" >> ~/.bashrc
 
 # Default entrypoint: launch RESPLE
 ENTRYPOINT ["/bin/bash", "-lc", "source /opt/ros/humble/setup.bash && source $HOME/ros2_ws/install/setup.bash && ros2 launch resple resple.launch.py"]
