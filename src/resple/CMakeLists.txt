@@ -87,6 +87,15 @@ target_link_libraries(Mapping
   ${YAML_CPP_LIBRARIES}
 )
 
+# ─── Installation des dossiers config/ et launch/ ───────────
+install(DIRECTORY config/
+  DESTINATION share/${PROJECT_NAME}/config
+)
+install(DIRECTORY launch/
+  DESTINATION share/${PROJECT_NAME}/launch
+)
+
+
 # Installation
 install(DIRECTORY launch
   DESTINATION share/${PROJECT_NAME})

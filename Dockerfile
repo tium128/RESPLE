@@ -8,7 +8,7 @@ ENV HOME=/root
 
 # Install system and ROS dependencies in one layer
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
+    git build-essential cmake \
     openssh-client \
     libpcl-dev \
     ros-humble-pcl-conversions \
@@ -16,16 +16,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libeigen3-dev \
     libomp-dev \
     libpcap-dev \
-    x11-apps \
-    qtbase5-dev \
-    qt5-qmake \
     libqt5gui5 \
-    qtwayland5 \
-    libqt5waylandclient5 \
-    libqt5waylandcompositor5 \
     ros-humble-rosbag2-storage-mcap \
     gdb \
     gdbserver \
+    qtwayland5 \
+    libqt5waylandclient5 \
+    libqt5waylandcompositor5 \
+    x11-apps xauth\
+    libwayland-egl1-mesa \
+    libwayland-client0 \
+    libwayland-cursor0 \
+    libxkbcommon0 \
   && rm -rf /var/lib/apt/lists/*
 
 # Create ROS2 workspace
@@ -36,6 +38,7 @@ RUN mkdir -p src
 WORKDIR $HOME/ros2_ws/src
 RUN git clone https://github.com/RoboSense-LiDAR/rslidar_msg.git && \
     git clone https://github.com/RoboSense-LiDAR/rslidar_sdk.git && \
+    #git clone https://github.com/RoboSense-LiDAR/rs_driver.git
     # Clone ROS2 driver inside the SDK tree so CMake can find it
     mkdir -p rslidar_sdk/src && \
     git clone https://github.com/RoboSense-LiDAR/rs_driver.git rslidar_sdk/src/rs_driver
@@ -43,23 +46,35 @@ RUN git clone https://github.com/RoboSense-LiDAR/rslidar_msg.git && \
 # Copy local RESPLE packages into workspace
 # This will copy your local ROS packages into the src folder.
 # Adjust the path if your packages live elsewhere.
-COPY . $HOME/ros2_ws/src/
+#COPY src $HOME/ros2_ws/src/
+
+# 3) Copier votre workspace entier (packages + Dockerfile + bags si besoin)
+WORKDIR /root/ros2_ws
+COPY . .
+
+
+# Si vous avez localement modifié le config/ et launch/ (plutôt que dans le dépôt),
+# copiez-les ensuite :
+#COPY rslidar_sdk/config /root/ros2_ws/src/rslidar_sdk/config
+#COPY rslidar_sdk/launch /root/ros2_ws/src/rslidar_sdk/launch
 
 # Copy local RESPLE packages into workspace (your code including CommonUtils.h)
-WORKDIR $HOME/ros2_ws/src
-COPY . .
+#WORKDIR $HOME/ros2_ws/src
+#COPY . .
 
 # Build the entire workspace
 RUN source /opt/ros/humble/setup.bash && \
-    colcon build --symlink-install \
-      --cmake-args -DCMAKE_BUILD_TYPE=Release
+    colcon build --merge-install --event-handlers console_direct+
 
 # Expose a volume for ROS bag files
 VOLUME ["/bags"]
 
+# 4) Passage en shell
+SHELL ["/bin/bash", "-lc"]
+ENTRYPOINT ["/bin/bash"]
 # Source workspace on shell startup
-RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc && \
-    echo "source /root/ros2_ws/install/setup.bash" >> ~/.bashrc
+#RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc && \
+#    echo "source /root/ros2_ws/install/setup.bash" >> ~/.bashrc
 
 # Default entrypoint: launch RESPLE
-ENTRYPOINT ["/bin/bash", "-lc", "source /opt/ros/humble/setup.bash && source $HOME/ros2_ws/install/setup.bash && ros2 launch resple resple.launch.py"]
+#ENTRYPOINT ["/bin/bash", "-lc", "source /opt/ros/humble/setup.bash && source $HOME/ros2_ws/install/setup.bash && ros2 launch resple resple.launch.py"]

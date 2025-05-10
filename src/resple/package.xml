@@ -32,6 +32,11 @@
   <build_depend>pcl_msgs</build_depend>
   <!-- Ajouté pour le SDK RoboSense -->
   <build_depend>rslidar_sdk</build_depend>
+  <!-- dépendances de build essentielles -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <!-- dépendances pour les launch files -->
+  <build_depend>launch</build_depend>
+  <build_depend>launch_ros</build_depend>
 
   <!-- Dépendances d’exécution -->
   <exec_depend>builtin_interfaces</exec_depend>
@@ -50,6 +55,10 @@
   <exec_depend>pcl_conversions</exec_depend>
   <exec_depend>pcl_msgs</exec_depend>
   <exec_depend>rslidar_sdk</exec_depend>
+  <!-- runtime pour lancer via ros2 launch -->
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+
 
   <test_depend>ament_lint_common</test_depend>
   <test_depend>ament_lint_auto</test_depend>

@@ -87,7 +87,7 @@ docker run --rm -it \
   -e QT_QPA_PLATFORM=xcb \
   -e QT_X11_NO_MITSHM=1 \
   -v /tmp/.X11-unix:/tmp/.X11-unix \
-  -v /mnt/c/Geoslam_workflow/:/Bag \
+  -v /mnt/c/Geoslam_workflow/Bag:/bags \
   lidar_spline_filter
 Explications :
 
