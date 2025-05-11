@@ -1,0 +1,144 @@
+Objectif : 
+Adapter le code de RESPLE (https://github.com/ASIG-X/RESPLE) pour qu'il puisse consommer les données du LIDAR Robosense Airy 96 (https://github.com/RoboSense-LiDAR/rslidar_sdk.git) pour le pipeline de traitement front-end d'un projet de Geoslam DIY. L'ensemble est packagé dans un docker et est destiné à être utilisé offline et non pas en live.
+
+Contexte : 
+Je peux comprendre un peu le code et sa logique par contre je serai incapable de coder et je m'appuierai entièrement sur toi pour me générer du code fiable, robuste et simple à lire et qui soit commenté.
+
+Architecture :
+1/ Les bag ROS2 du Lidar Robosense Airy sont enregistrés en mode Packet et sous le format XYZIRT grâce au Robosense rslidar_sdk sur un pc mobile
+2/ Sur le pc de traitement offline sur lequel on travaille en ce moment on est sur Windows 11 Pro avec WSL Ubuntu 22.04
+3/ Le noeud de replay et resple sont intégrés dans un container docker (dockerfile disponible à la demande)
+4/ Dans le conteneur docker, les bags sont rejoués en mode paquet et traduit par le noeud rslidar_sdk qui expose le topic rslidar_points au format XYZRT, Ci-après un extrait du message sensor_msgs/msg/PointCloud2 @ 1746907151.236000000 sec
+sec 
+163 
+
+nsec 
+103953000
+
+frame_id 
+"rslidar"
+ 
+height 
+92
+ 
+width 
+96
+ 
+name 
+"x"
+ 
+offset 
+0
+ 
+datatype 
+7
+ 
+count 
+1
+ 
+name 
+"y"
+ 
+offset 
+4
+ 
+datatype 
+7
+ 
+count 
+1
+ 
+name 
+"z"
+ 
+offset 
+8
+ 
+datatype 
+7
+ 
+count 
+1
+ 
+name 
+"intensity"
+ 
+offset 
+12
+ 
+datatype 
+7
+ 
+count 
+1
+ 
+name 
+"ring"
+ 
+offset 
+16
+ 
+datatype 
+4
+ 
+count 
+1
+ 
+name 
+"timestamp"
+ 
+offset 
+18
+ 
+datatype 
+8
+ 
+count 
+1
+ 
+is_bigendian 
+false
+ 
+point_step 
+26
+ 
+row_step 
+2496
+ 
+data 
+Uint8Array (229632)
+ [207, 121, 217, 63, 13, 209, 40, 189, 252, 144, 175, 61, 0, 0, 186, 66, 0, 0, 70, 234, …]
+is_dense 
+false
+
+5/ Le Robosense Airy 96 est un lidar hémisphérique à 360° avec une FOV de 90° de 0° à 90° (https://www.robosense.ai/en/rslidar/Airy) avec une fréquence de rotation de 10 Hz
+
+6/ Le code source de RESPLE est disponible sous le github suivant : https://github.com/ASIG-X/RESPLE
+Après analyse de mapping.cpp et RESPLE.cpp j'ai indentifié avec ton aide qu'il faut s'inspirer des fonctions et du code destiné au LIDAR Ouster qui ressemble le plus à notre LIDAR.
+
+7/ Parmis les fonctions stratégiques que j'ai identifié comme nécessaire de s'inspirer et adapter pour que Resple et mapping puisse consommer les données du Robosense airy 96 il y a 
+- void ousterLidarCallback(const sensor_msgs::msg::PointCloud2::SharedPtr ouster_msg_in) dans RESPLE.cpp
+- rajouter la prise en charge du robosense airy 96 comme pour le Ouster dans RESPLE(rclcpp::Node::SharedPtr& nh)  dans RESPLE.cpp
+- déclarer un  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_ouster; mais pour le robosense Airy 96
+- écrire une class buff pour le robosense airy 96 en s'insipirant de class OusterBuff : public MappingBase<pcl::PointXYZINormal> dans mapping.cpp
+- intégrer la prise en charge du robosense airy 96 dans int main(int argc, char** argv) dans mapping.cpp
+- le fichier yaml config_airy96.yaml décrivant le robosense airy 96 est disponible et je peux te le fournir à la demande. Je l'ai écrit avec ton aide dans un précédent chat. On s'est inspiré du config_eee02.yaml destiné à l'Ouster.
+
+8/ Le code que tu vas me fournir pour gérer le robosense airy96 doit etre le plus simple possible, avoir une syntaxe et une architecture qui colle au maximum au code qui a été écrit pour l'OUSTER afin de limiter les erreurs de compilation, les bugs et faciliter la compréhension et la relecture. L'idée n'est pas d'innover mais de faire le strict minimum nécessaire pour gérer le robosense Airy 96
+
+9/ Je te demande de ne rien inventer, s'il te manque des informations tu n'inventes pas, tu me demandes les fichiers source comme le Dockerfile, les fichiers cpp, les yaml ou les fichiers .h...
+
+10/ Je te demande de structurer tes réponses pour que nous puissions faire cette intégration étape par étape. Je préfère que tu me donnes des portions de code directement à copier-coller et de manière générale une fonction entière et pas de petit bloc au milieu d'une fonction car je risque de faire des erreurs d'indentation dans le code.
+
+Ressources disponibles : 
+Github du robosense rslidar_sdk : https://github.com/RoboSense-LiDAR/rslidar_sdk
+Github du noeud ROS2 RESPLE : https://github.com/ASIG-X/RESPLE
+Papier de recherche sur RESPLE : https://arxiv.org/abs/2504.11580
+
+Je peux te fournir à ta demande les fichiers cpp, dockerfile, yaml, .h, arborescence du projet.
+
+
+
+
+
+

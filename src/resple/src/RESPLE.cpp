@@ -29,6 +29,7 @@
 #include "Estimator.h"
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 
+
 KD_TREE<pcl::PointXYZINormal> ikdtree;
 
 class RESPLE
@@ -75,13 +76,14 @@ public:
             } else if (!lidar.type.compare("Hesai")) {
                 sub_hesai = nh->create_subscription<sensor_msgs::msg::PointCloud2>(
                         lidar.topic, 200000, std::bind(&RESPLE::hesaiLidarCallback, this, std::placeholders::_1));
+            // --- Airy96 comme pour Ouster/Hesai ---
+            } else if (!lidar.type.compare("Airy96")) {
+                sub_airy96 = nh->create_subscription<sensor_msgs::msg::PointCloud2>(
+                        lidar.topic, 200000, std::bind(&RESPLE::airy96LidarCallback, this, std::placeholders::_1));
             } else if (!lidar.type.compare("Mid360Boxi")) {
                 sub_livox_mid360_boxi = nh->create_subscription<sensor_msgs::msg::PointCloud2>(
                         lidar.topic, 200000, std::bind(&RESPLE::livoxMid360BoxiCallback, this, std::placeholders::_1));
-            } else if (!lidar.type.compare("Airy96")) {
-               sub_airy = nh->create_subscription<sensor_msgs::msg::PointCloud2>(
-                        lidar.topic, 200000,std::bind(&RESPLE::airyLidarCallback, this, std::placeholders::_1));
-						}
+            }
         }        
     }
 
@@ -109,16 +111,7 @@ public:
                     sort(pc_last_ds->points.begin(), pc_last_ds->points.end(), &CommonUtils::time_list);
                     const LidarConfig& lidar = lidars.at(lidar_name);
                     for (size_t i = 0; i < pc_last_ds->points.size(); i++) {
-                        // raw = pcl::PointXYZINormal où :
-                        //   raw.intensity = offset du paquet en ms
-                        //   raw.curvature  = ring (0…95)
-                        PointData pt(
-                            pc_last_ds->points[i],   // on passe raw directement
-                            time_begin,              // début de frame en ns
-                            lidar.q_bl,
-                            lidar.t_bl,
-                            lidar.w_pt
-                        );
+                        PointData pt(pc_last_ds->points[i], time_begin, lidar.q_bl, lidar.t_bl, lidar.w_pt);
                         lidar_data.pt_buff.push_back(pt);
                     }
                 }
@@ -195,13 +188,14 @@ public:
 private:
 
     std::string node_name = "RESPLE";
-	rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_airy;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_ouster;
     rclcpp::Subscription<livox_ros_driver::msg::CustomMsg>::SharedPtr sub_livox;
     rclcpp::Subscription<livox_ros_driver2::msg::CustomMsg>::SharedPtr sub_livox2;
     rclcpp::Subscription<livox_interfaces::msg::CustomMsg>::SharedPtr sub_livox_avia;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_hesai;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_livox_mid360_boxi;
+    // --- Prise en charge du Robosense Airy96 ---
+    rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_airy96;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_cur_scan;
     rclcpp::Publisher<estimate_msgs::msg::Estimate>::SharedPtr pub_est;
     rclcpp::Publisher<std_msgs::msg::Int64>::SharedPtr pub_start_time;
@@ -382,49 +376,6 @@ private:
         lidar_buffs.mtx_pc.unlock();        
         last_t_ns = time_begin + max_ofs_ns;
     }    
-
-    void airyLidarCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
-    {
-    const std::string name = "Airy96";
-    auto& lidar_data = lidars_data.at(name);
-    pcl::PointCloud<pcl::PointXYZINormal>::Ptr pc_last(new pcl::PointCloud<pcl::PointXYZINormal>());
-
-    // Itérateurs sur XYZRT
-    sensor_msgs::PointCloud2ConstIterator<float>    it_x(*msg, "x");
-    sensor_msgs::PointCloud2ConstIterator<float>    it_y(*msg, "y");
-    sensor_msgs::PointCloud2ConstIterator<float>    it_z(*msg, "z");
-    sensor_msgs::PointCloud2ConstIterator<uint16_t> it_ring(*msg, "ring");
-    sensor_msgs::PointCloud2ConstIterator<uint64_t> it_time(*msg, "timestamp");
-
-    size_t N = msg->width * msg->height;
-    pc_last->reserve(N);
-
-    int64_t time_begin = rclcpp::Time(msg->header.stamp).nanoseconds();
-    int64_t max_ofs_ns = 0;
-
-    for (size_t i = 0; i < N; ++i, ++it_x, ++it_y, ++it_z, ++it_ring, ++it_time) {
-        pcl::PointXYZINormal pt;
-        pt.x = *it_x;
-        pt.y = *it_y;
-        pt.z = *it_z;
-        // stockez timestamp relatif en ms dans intensity pour suivre le pattern existant
-        int64_t ofs = static_cast<int64_t>(*it_time);
-        pt.intensity = float(ofs) / 1e6f;  
-        pt.curvature = static_cast<float>(*it_ring); // on y stocke ring pour le récupérer plus tard
-
-        if (pt.intensity >= 0.f) {
-            pc_last->points.push_back(pt);
-            max_ofs_ns = std::max(max_ofs_ns, ofs);
-        }
-    }
-
-    // Empilement thread-safe
-    lidar_data.mtx_pc.lock();
-    lidar_data.pc_buff.push_back(pc_last->points);
-    lidar_data.t_buff.push_back(time_begin);
-    lidar_data.mtx_pc.unlock();
-    }
-
 
     void livoxLidarCallback(const livox_ros_driver::msg::CustomMsg::SharedPtr livox_msg_in)
     {
@@ -607,6 +558,77 @@ private:
         lidar_buffs.mtx_pc.unlock();        
         last_t_ns = time_begin + max_ofs_ns;
 	}     
+
+// Callback pour le Robosense Airy96, au format XYZIRT
+void airy96LidarCallback(const sensor_msgs::msg::PointCloud2::SharedPtr airy_msg_in)
+    {
+        // 1) Nom du LiDAR et config associée
+        std::string name = "Airy96";
+        const LidarConfig& lidar = lidars.at(name);
+
+        // 2) Nuage PCL de sortie (PointXYZINormal) pour stocker les points traités
+        pcl::PointCloud<pcl::PointXYZINormal>::Ptr pc_last(
+            new pcl::PointCloud<pcl::PointXYZINormal>());
+
+        // 3) Itérateurs ROS2 pour chaque champ du PointCloud2
+        sensor_msgs::PointCloud2ConstIterator<float>   it_x(*airy_msg_in, "x");           // X (m)
+        sensor_msgs::PointCloud2ConstIterator<float>   it_y(*airy_msg_in, "y");           // Y (m)
+        sensor_msgs::PointCloud2ConstIterator<float>   it_z(*airy_msg_in, "z");           // Z (m)
+        sensor_msgs::PointCloud2ConstIterator<float>   it_intensity(*airy_msg_in, "intensity"); // Reflectivité
+        sensor_msgs::PointCloud2ConstIterator<double>  it_time(*airy_msg_in, "timestamp");    // Temps relatif (s)
+
+        // 4) Timestamp de début de scan (en ns)
+        int64_t time_begin =
+        rclcpp::Time(airy_msg_in->header.stamp).nanoseconds();
+
+        // 5) Variables pour le filtrage temporel
+        static int64_t last_t_ns = time_begin;
+        int64_t          max_ofs_ns = 0;
+        float            blind     = lidar.blind;          // seuil distance min
+        unsigned int     idx       = 0;                    // compteur pour sous-échantillon
+
+        // 6) Parcours de tous les points
+        for (; it_x != it_x.end(); ++it_x, ++it_y, ++it_z,
+            ++it_intensity, ++it_time, ++idx)
+        {
+            // 6.1) On ne conserve qu'un point sur N pour alléger
+            if (idx % point_filter_num != 0) continue;
+
+            // 6.2) Remplissage des coordonnées
+            pcl::PointXYZINormal pt;
+            pt.x = *it_x;
+            pt.y = *it_y;
+            pt.z = *it_z;
+
+            // 6.3) Conversion du temps relatif en offset nanosecondes
+            double dt_s    = *it_time;                                     // sec
+            int64_t ofs_ns = static_cast<int64_t>(dt_s * 1e9);             // ns
+
+            // 6.4) Stockage dans intensity (ms) et reflectivité dans curvature
+            pt.intensity = static_cast<float>(ofs_ns / 1e6);                // ms
+            pt.curvature = *it_intensity;
+
+            // 6.5) Filtrage : validité temporelle et distance
+            if (pt.intensity <  0.0f)                         continue;
+            if (pt.x*pt.x + pt.y*pt.y + pt.z*pt.z <= blind*blind) continue;
+            if (time_begin + ofs_ns <= last_t_ns)             continue;
+
+            // 6.6) Ajout du point
+            pc_last->points.push_back(pt);
+            max_ofs_ns = std::max(max_ofs_ns, ofs_ns);
+        }
+
+        // 7) Stockage thread-safe dans le buffer de RESPLE
+        LidarData& lidar_buffs = lidars_data.at(name);
+        lidar_buffs.mtx_pc.lock();
+        lidar_buffs.pc_buff.push_back(pc_last->points);
+        lidar_buffs.t_buff.push_back(time_begin);
+        lidar_buffs.mtx_pc.unlock();
+
+        // 8) Mise à jour du dernier timestamp global
+        last_t_ns = time_begin + max_ofs_ns;
+    }
+
 
     void livoxMid360BoxiCallback(const sensor_msgs::msg::PointCloud2::SharedPtr livox_msg_in)
 	{

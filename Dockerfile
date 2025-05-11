@@ -28,7 +28,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libwayland-client0 \
     libwayland-cursor0 \
     libxkbcommon0 \
-  && rm -rf /var/lib/apt/lists/*
+    ros-humble-foxglove-bridge \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create ROS2 workspace
 WORKDIR $HOME/ros2_ws
@@ -65,16 +66,18 @@ COPY . .
 # Build the entire workspace
 RUN source /opt/ros/humble/setup.bash && \
     colcon build --merge-install --event-handlers console_direct+
+    
+    # expose le port rosbridge WebSocket
+    EXPOSE 8765
 
 # Expose a volume for ROS bag files
 VOLUME ["/bags"]
 
 # 4) Passage en shell
 SHELL ["/bin/bash", "-lc"]
-ENTRYPOINT ["/bin/bash"]
-# Source workspace on shell startup
-#RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc && \
-#    echo "source /root/ros2_ws/install/setup.bash" >> ~/.bashrc
 
-# Default entrypoint: launch RESPLE
-#ENTRYPOINT ["/bin/bash", "-lc", "source /opt/ros/humble/setup.bash && source $HOME/ros2_ws/install/setup.bash && ros2 launch resple resple.launch.py"]
+# Copie et rend exécutable notre script de démarrage multi-process
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]

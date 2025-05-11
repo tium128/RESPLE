@@ -1,4 +1,4 @@
-#include <pcl_conversions/pcl_conversions.h>
+﻿#include <pcl_conversions/pcl_conversions.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/filters/voxel_grid.h>
@@ -171,90 +171,180 @@ class OusterBuff : public MappingBase<pcl::PointXYZINormal>
     int64_t time_offset = 0;
 };
 
-class Mid70AviaBuff : public MappingBase<pcl::PointXYZINormal>
+// --- Prise en charge du Robosense Airy96 ---
+class Airy96Buff : public MappingBase<pcl::PointXYZINormal>
 {
-  public:
-  Mid70AviaBuff(rclcpp::Node::SharedPtr &nh, const LidarConfig& lidar_config) : MappingBase<pcl::PointXYZINormal>(nh, lidar_config)
-    {
-        pc_subscription_livox = nh->create_subscription<livox_ros_driver::msg::CustomMsg>(
-            this->lidar.topic, 100, std::bind(&Mid70AviaBuff::livoxLidarCallback, this, std::placeholders::_1));
-    }
-
-    void livoxLidarCallback(const livox_ros_driver::msg::CustomMsg::SharedPtr livox_msg_in)
-    {
-        this->pc_last->clear();
-        int plsize = livox_msg_in->point_num;
-        if (plsize == 0) return;
-        this->pc_last->reserve(plsize);
-        pcl::PointXYZINormal pt;
-        for (int i = 1; i < plsize; i++) {
-            if ((livox_msg_in->points[i].tag & 0x30) == 0x10 || (livox_msg_in->points[i].tag & 0x30) == 0x00) {
-                pt.x = livox_msg_in->points[i].x;
-                pt.y = livox_msg_in->points[i].y;
-                pt.z = livox_msg_in->points[i].z;
-                pt.intensity = float (livox_msg_in->points[i].offset_time) / float (1e6); // unit: ms         
-                pt.curvature = livox_msg_in->points[i].reflectivity;
-                pc_last->points.push_back(pt);
-            }
+    public:
+        Airy96Buff(rclcpp::Node::SharedPtr &nh, const LidarConfig& lidar_config) : MappingBase<pcl::PointXYZINormal>(nh, lidar_config)
+        {
+            pc_subscription_airy = nh->create_subscription<sensor_msgs::msg::PointCloud2>(
+                this->lidar.topic, 100, std::bind(&Airy96Buff::airy96LidarCallback, this, std::placeholders::_1));
         }
-        this->pc_last->header.frame_id = this->frame_id;
-        this->pc_last->header.stamp = rclcpp::Time(livox_msg_in->header.stamp).nanoseconds();
-        std::vector<int> indices;
-        pcl::removeNaNFromPointCloud(*this->pc_last, *this->pc_last, indices);
-        if (this->pc_last->points.empty()) return;
-        ds_filter_each_scan.setInputCloud(pc_last);
-        this->pc_last_ds->clear();
-        ds_filter_each_scan.filter(*this->pc_last_ds);
-        pc_last_ds->header.frame_id = this->frame_id;
-        pc_last_ds->header.stamp = rclcpp::Time(livox_msg_in->header.stamp).nanoseconds();
-        mtx.lock();
-        this->pc_L_buff.push_back(*pc_last_ds);
-        mtx.unlock();
-    }
 
-  private:
-    rclcpp::Subscription<livox_ros_driver::msg::CustomMsg>::SharedPtr pc_subscription_livox;
+        void airy96LidarCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
+        {
+            // 1. On vide le nuage de points non traité
+            this->pc_last->clear();
+
+            // 2. Préparation d'itérateurs pour lire chaque champ du PointCloud2
+            //    - x, y, z : coordonnées
+            //    - intensity : reflectivité
+            //    - ring : n° du faisceau (0 à 95)
+            //    - timestamp : temps relatif (secondes depuis début du scan)
+            sensor_msgs::PointCloud2ConstIterator<float> it_x(*msg, "x");
+            sensor_msgs::PointCloud2ConstIterator<float> it_y(*msg, "y");
+            sensor_msgs::PointCloud2ConstIterator<float> it_z(*msg, "z");
+            sensor_msgs::PointCloud2ConstIterator<float> it_intensity(*msg, "intensity");
+            sensor_msgs::PointCloud2ConstIterator<float> it_time(*msg, "time");
+            sensor_msgs::PointCloud2ConstIterator<uint16_t> it_ring(*msg, "ring");
+
+            // 3. Temps de début de scan en nanosecondes (header.stamp)
+            int64_t scan_start_ns = rclcpp::Time(msg->header.stamp).nanoseconds();
+
+            // 4. Parcours de tous les points
+            for (; it_x != it_x.end(); ++it_x, ++it_y, ++it_z,
+                ++it_intensity, ++it_time, ++it_ring)
+            {
+                // 4.1. Construction du point PCL
+                pcl::PointXYZINormal pt;
+
+                // 4.2. Remplissage des coordonnées (m)
+                pt.x = *it_x;
+                pt.y = *it_y;
+                pt.z = *it_z;
+
+                // 4.3. Reflectivité stockée dans 'curvature' (ou intensity selon vos conventions)
+                pt.curvature = *it_intensity;
+
+                // 4.4. Si vous voulez garder le numéro de faisceau, récupérez-le ici
+                uint16_t ring_id = *it_ring;
+                // (actuellement non stocké dans PointXYZINormal)
+
+                // 4.5. Calcul du timestamp absolu du point (ns)
+                float dt_rel = *it_time;  // en secondes
+                int64_t pt_ns = scan_start_ns + static_cast<int64_t>(dt_rel * 1e9f);
+                // Vous pourriez stocker pt_ns dans la timestamp du header si vous utilisez un type PCL + champs custom
+
+                // 4.6. Filtrage basique : on ne garde que les points valides
+                if (pt.curvature < 0.0f) continue;
+
+                // 4.7. Ajout au nuage
+                this->pc_last->points.push_back(pt);
+            }
+
+            // 5. Conservation du frame et du timestamp global
+            this->pc_last->header.frame_id = this->frame_id;
+            this->pc_last->header.stamp    = scan_start_ns;
+
+            // 6. Suppression des NaN éventuels
+            std::vector<int> indices;
+            pcl::removeNaNFromPointCloud(*this->pc_last, *this->pc_last, indices);
+
+            // 7. Si le nuage est vide, on sort
+            if (this->pc_last->points.empty()) return;
+
+            // 8. Downsampling et stockage dans le buffer
+            ds_filter_each_scan.setInputCloud(pc_last);
+            this->pc_last_ds->clear();
+            ds_filter_each_scan.filter(*this->pc_last_ds);
+
+            this->pc_last_ds->header.frame_id = this->frame_id;
+            this->pc_last_ds->header.stamp    = scan_start_ns;
+
+            // 9. Verrou pour ajouter en toute sécurité au buffer partagé
+            std::lock_guard<std::mutex> lock(mtx);
+            this->pc_L_buff.push_back(*pc_last_ds);
+        }
+
+    private:
+        rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pc_subscription_airy;
 };
 
-class HAP360Buff : public MappingBase<pcl::PointXYZINormal>
-{
-public:
-    HAP360Buff(rclcpp::Node::SharedPtr &nh, const LidarConfig& lidar_config) : MappingBase<pcl::PointXYZINormal>(nh, lidar_config)
-    {
-        pc_subscription_livox = nh->create_subscription<livox_ros_driver2::msg::CustomMsg>(
-            this->lidar.topic, 100, std::bind(&HAP360Buff::livoxLidarCallback, this, std::placeholders::_1));
-    }
 
-    void livoxLidarCallback(livox_ros_driver2::msg::CustomMsg::SharedPtr livox_msg_in)
+    class Mid70AviaBuff : public MappingBase<pcl::PointXYZINormal>
     {
-        this->pc_last->clear();
-        int plsize = livox_msg_in->point_num;
-        if (plsize == 0) return;
-        this->pc_last->reserve(plsize);
-        pcl::PointXYZINormal pt;
-        for (int i = 1; i < plsize; i++) {
-            if ((livox_msg_in->points[i].tag & 0x30) == 0x10 || (livox_msg_in->points[i].tag & 0x30) == 0x00) {
-                pt.x = livox_msg_in->points[i].x;
-                pt.y = livox_msg_in->points[i].y;
-                pt.z = livox_msg_in->points[i].z;
-                pt.intensity = float (livox_msg_in->points[i].offset_time) / float (1e6); // unit: ms         
-                pt.curvature = livox_msg_in->points[i].reflectivity;
-                pc_last->points.push_back(pt);
-            }
+    public:
+    Mid70AviaBuff(rclcpp::Node::SharedPtr &nh, const LidarConfig& lidar_config) : MappingBase<pcl::PointXYZINormal>(nh, lidar_config)
+        {
+            pc_subscription_livox = nh->create_subscription<livox_ros_driver::msg::CustomMsg>(
+                this->lidar.topic, 100, std::bind(&Mid70AviaBuff::livoxLidarCallback, this, std::placeholders::_1));
         }
-        this->pc_last->header.frame_id = this->frame_id;
-        this->pc_last->header.stamp = rclcpp::Time(livox_msg_in->header.stamp).nanoseconds();
-        std::vector<int> indices;
-        pcl::removeNaNFromPointCloud(*this->pc_last, *this->pc_last, indices);
-        if (this->pc_last->points.empty()) return;
-        ds_filter_each_scan.setInputCloud(pc_last);
-        this->pc_last_ds->clear();
-        ds_filter_each_scan.filter(*this->pc_last_ds);
-        pc_last_ds->header.frame_id = this->frame_id;
-        pc_last_ds->header.stamp = rclcpp::Time(livox_msg_in->header.stamp).nanoseconds();
-        mtx.lock();
-        this->pc_L_buff.push_back(*pc_last_ds);
-        mtx.unlock();
+
+        void livoxLidarCallback(const livox_ros_driver::msg::CustomMsg::SharedPtr livox_msg_in)
+        {
+            this->pc_last->clear();
+            int plsize = livox_msg_in->point_num;
+            if (plsize == 0) return;
+            this->pc_last->reserve(plsize);
+            pcl::PointXYZINormal pt;
+            for (int i = 1; i < plsize; i++) {
+                if ((livox_msg_in->points[i].tag & 0x30) == 0x10 || (livox_msg_in->points[i].tag & 0x30) == 0x00) {
+                    pt.x = livox_msg_in->points[i].x;
+                    pt.y = livox_msg_in->points[i].y;
+                    pt.z = livox_msg_in->points[i].z;
+                    pt.intensity = float (livox_msg_in->points[i].offset_time) / float (1e6); // unit: ms         
+                    pt.curvature = livox_msg_in->points[i].reflectivity;
+                    pc_last->points.push_back(pt);
+                }
+            }
+            this->pc_last->header.frame_id = this->frame_id;
+            this->pc_last->header.stamp = rclcpp::Time(livox_msg_in->header.stamp).nanoseconds();
+            std::vector<int> indices;
+            pcl::removeNaNFromPointCloud(*this->pc_last, *this->pc_last, indices);
+            if (this->pc_last->points.empty()) return;
+            ds_filter_each_scan.setInputCloud(pc_last);
+            this->pc_last_ds->clear();
+            ds_filter_each_scan.filter(*this->pc_last_ds);
+            pc_last_ds->header.frame_id = this->frame_id;
+            pc_last_ds->header.stamp = rclcpp::Time(livox_msg_in->header.stamp).nanoseconds();
+            mtx.lock();
+            this->pc_L_buff.push_back(*pc_last_ds);
+            mtx.unlock();
+        }
+
+    private:
+        rclcpp::Subscription<livox_ros_driver::msg::CustomMsg>::SharedPtr pc_subscription_livox;
+    };
+
+    class HAP360Buff : public MappingBase<pcl::PointXYZINormal>
+    {
+    public:
+        HAP360Buff(rclcpp::Node::SharedPtr &nh, const LidarConfig& lidar_config) : MappingBase<pcl::PointXYZINormal>(nh, lidar_config)
+        {
+            pc_subscription_livox = nh->create_subscription<livox_ros_driver2::msg::CustomMsg>(
+                this->lidar.topic, 100, std::bind(&HAP360Buff::livoxLidarCallback, this, std::placeholders::_1));
+        }
+
+        void livoxLidarCallback(livox_ros_driver2::msg::CustomMsg::SharedPtr livox_msg_in)
+        {
+            this->pc_last->clear();
+            int plsize = livox_msg_in->point_num;
+            if (plsize == 0) return;
+            this->pc_last->reserve(plsize);
+            pcl::PointXYZINormal pt;
+            for (int i = 1; i < plsize; i++) {
+                if ((livox_msg_in->points[i].tag & 0x30) == 0x10 || (livox_msg_in->points[i].tag & 0x30) == 0x00) {
+                    pt.x = livox_msg_in->points[i].x;
+                    pt.y = livox_msg_in->points[i].y;
+                    pt.z = livox_msg_in->points[i].z;
+                    pt.intensity = float (livox_msg_in->points[i].offset_time) / float (1e6); // unit: ms         
+                    pt.curvature = livox_msg_in->points[i].reflectivity;
+                    pc_last->points.push_back(pt);
+                }
+            }
+            this->pc_last->header.frame_id = this->frame_id;
+            this->pc_last->header.stamp = rclcpp::Time(livox_msg_in->header.stamp).nanoseconds();
+            std::vector<int> indices;
+            pcl::removeNaNFromPointCloud(*this->pc_last, *this->pc_last, indices);
+            if (this->pc_last->points.empty()) return;
+            ds_filter_each_scan.setInputCloud(pc_last);
+            this->pc_last_ds->clear();
+            ds_filter_each_scan.filter(*this->pc_last_ds);
+            pc_last_ds->header.frame_id = this->frame_id;
+            pc_last_ds->header.stamp = rclcpp::Time(livox_msg_in->header.stamp).nanoseconds();
+            mtx.lock();
+            this->pc_L_buff.push_back(*pc_last_ds);
+            mtx.unlock();
     }
 
   private:
@@ -409,69 +499,6 @@ class Mid360BoxiBuff : public MappingBase<pcl::PointXYZINormal>
   private:
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pc_subscription_mid360;
 };
-
-// -----------------------------------------------------------------------------
-//                Support offline Robosense Airy 96 (XYZRT bags)
-// -----------------------------------------------------------------------------
-class Airy96Buff : public MappingBase<pcl::PointXYZINormal>
-{
-public:
-  Airy96Buff(rclcpp::Node::SharedPtr &nh, const LidarConfig& lidar_config)
-    : MappingBase<pcl::PointXYZINormal>(nh, lidar_config)
-  {
-    pc_subscription_airy = nh->create_subscription<sensor_msgs::msg::PointCloud2>(
-        this->lidar.topic, 100,
-        std::bind(&Airy96Buff::airyLidarCallback, this, std::placeholders::_1));
-  }
-
-  void airyLidarCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
-  {
-    // 1) Prépare le conteneur
-    this->pc_last->clear();
-    size_t N = msg->width * msg->height;
-    this->pc_last->reserve(N);
-
-    // 2) Itérateurs sur XYZRT
-    sensor_msgs::PointCloud2ConstIterator<float>    it_x(*msg, "x");
-    sensor_msgs::PointCloud2ConstIterator<float>    it_y(*msg, "y");
-    sensor_msgs::PointCloud2ConstIterator<float>    it_z(*msg, "z");
-    sensor_msgs::PointCloud2ConstIterator<uint16_t> it_ring(*msg, "ring");
-    sensor_msgs::PointCloud2ConstIterator<uint64_t> it_time(*msg, "timestamp");
-
-    int64_t t0 = rclcpp::Time(msg->header.stamp).nanoseconds();
-    // 3) Remplissage du pcl::PointCloud<pcl::PointXYZINormal>
-    for (size_t i = 0; i < N; ++i, ++it_x, ++it_y, ++it_z, ++it_ring, ++it_time) {
-      pcl::PointXYZINormal pt;
-      pt.x         = *it_x;
-      pt.y         = *it_y;
-      pt.z         = *it_z;
-      // stocke offset (ns→ms) dans intensity
-      pt.intensity = float(*it_time) * 1e-6f;
-      // stocke ring dans curvature
-      pt.curvature = float(*it_ring);
-      this->pc_last->points.push_back(pt);
-    }
-
-    // 4) Header et filtrage
-    this->pc_last->header.frame_id = this->frame_id;
-    this->pc_last->header.stamp    = t0;
-    std::vector<int> idx;
-    pcl::removeNaNFromPointCloud(*this->pc_last, *this->pc_last, idx);
-    if (this->pc_last->empty()) return;
-    ds_filter_each_scan.setInputCloud(pc_last);
-    this->pc_last_ds->clear();
-    ds_filter_each_scan.filter(*this->pc_last_ds);
-    pc_last_ds->header = this->pc_last->header;
-
-    // 5) Buffer pour MappingBase
-    std::lock_guard<std::mutex> lk(mtx);
-    this->pc_L_buff.push_back(*pc_last_ds);
-  }
-
-private:
-  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pc_subscription_airy;
-};
-
 
 class Mapping
 {
@@ -676,11 +703,11 @@ int main(int argc, char** argv) {
             buffs.push_back(new AviaRespleBuff(nh, lidar));
         } else if (!lidar.type.compare("Hesai")) {
             buffs.push_back(new HesaiBuff(nh, lidar));
-        } else if (!lidar.type.compare("Mid360Boxi")) {
-            buffs.push_back(new Mid360BoxiBuff(nh, lidar));
         } else if (!lidar.type.compare("Airy96")) {
             buffs.push_back(new Airy96Buff(nh, lidar));
-        }else {
+        } else if (!lidar.type.compare("Mid360Boxi")) {
+            buffs.push_back(new Mid360BoxiBuff(nh, lidar));
+        } else {
             exit(1);
         }
     }

@@ -13,11 +13,11 @@ def generate_launch_description():
         'config',
         'config.rviz')        
     return launch.LaunchDescription([     
-        launch_ros.actions.Node(
-            package='rviz2',
-            executable='rviz2',
-            name='rviz2',
-            arguments=['-d', config_rviz, '--ros-args', '--log-level', 'WARN']),                	               
+        #launch_ros.actions.Node(
+        #    package='rviz2',
+        #    executable='rviz2',
+        #    name='rviz2',
+        #    arguments=['-d', config_rviz, '--ros-args', '--log-level', 'WARN']),                	               
         launch_ros.actions.Node(
             package='resple',
             executable='RESPLE',

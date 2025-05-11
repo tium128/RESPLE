@@ -24,7 +24,8 @@
     rotation_rate: 10.0         # vitesse de rotation (Hz)
     resolution_h: 0.4           # résolution angulaire horizontale (°)
     resolution_v: 0.947         # résolution angulaire verticale (°)
-    blind: 0.5                  # distance minimale pour filtrage (m)
+    blind: 0.5
+    decimation: 1                  # distance minimale pour filtrage (m)
     q_lb: [1.0, 0.0, 0.0, 0.0]   # quaternion boîtier→LiDAR
     t_lb: [0.0, 0.0, 0.0]        # translation boîtier→LiDAR (m)
     w_pt: 0.01                  # poids pour motion‐compensation
