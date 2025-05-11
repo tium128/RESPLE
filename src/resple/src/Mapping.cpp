@@ -195,7 +195,7 @@ class Airy96Buff : public MappingBase<pcl::PointXYZINormal>
             sensor_msgs::PointCloud2ConstIterator<float> it_y(*msg, "y");
             sensor_msgs::PointCloud2ConstIterator<float> it_z(*msg, "z");
             sensor_msgs::PointCloud2ConstIterator<float> it_intensity(*msg, "intensity");
-            sensor_msgs::PointCloud2ConstIterator<float> it_time(*msg, "time");
+            sensor_msgs::PointCloud2ConstIterator<double> it_time(*msg, "timestamp");
             sensor_msgs::PointCloud2ConstIterator<uint16_t> it_ring(*msg, "ring");
 
             // 3. Temps de début de scan en nanosecondes (header.stamp)

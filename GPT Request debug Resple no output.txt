@@ -1,0 +1,156 @@
+Objectif : 
+Adapter le code de RESPLE (https://github.com/ASIG-X/RESPLE) pour qu'il puisse consommer les données du LIDAR Robosense Airy 96 (https://github.com/RoboSense-LiDAR/rslidar_sdk.git) pour le pipeline de traitement front-end d'un projet de Geoslam DIY. L'ensemble est packagé dans un docker et est destiné à être utilisé offline et non pas en live.
+
+Constat :
+En alimentant le noeud ROS2 Resple avec mon noeuds ROS2 rslidar_sdk avec le replay d'un bag, j'ai bien des données qui défilent dans /rslidar_points mais je n'ai rien dans les topics de sortie de resple
+
+Contexte : 
+Je peux comprendre un peu le code et sa logique par contre je serai incapable de coder et je m'appuierai entièrement sur toi pour me générer du code fiable, robuste et simple à lire et qui soit commenté.
+Je comprends dans les grandes lignes le principe des noeuds de transformation dans ROS2 mais j'ai besoin de ton expertise pour m'assurer que ma chaine de noeuds dans ROS2 est cohérente pour que resple puisse fonctionner.
+Tu m'as déja aidé dans un chat précédent à compléter le code de mapping.cpp et RESPLE.cpp pour prendre en charge le Airy96. On remettra pour plus tard les optimisations pour gérer le découpage temporel et la gestion des rings pour gagner en précision. 
+Je ne sais pas si mon launch est complet, si resple attends des transformers particuliers pour pouvoir fonctionner je suis complètement novice là dedans et je m'appuis sur ton expertise pour débugger ma chaine de traitement offline ROS2.
+Je sais que RESPLE fonctionne car les jeux de données avec lidar Livox et Ouster fonctionne et tu pourras voir sur le github de RESPLE leur yaml ou launch.
+Je visualise mes résultats sous Foxglove et foxglove m'indique l'erreur suivante pour le topic /current_scan : Missing tranfsorm from frame <odom> to frame <base_link> et je n'ai pas cette erreur avec les jeux de test fourni par l'équipe qui a développé RESPLE.
+
+Architecture :
+1/ Les bag ROS2 du Lidar Robosense Airy sont enregistrés en mode Packet et sous le format XYZIRT grâce au Robosense rslidar_sdk sur un pc mobile
+2/ Sur le pc de traitement offline sur lequel on travaille en ce moment on est sur Windows 11 Pro avec WSL Ubuntu 22.04
+3/ Le noeud de replay et resple sont intégrés dans un container docker (dockerfile disponible à la demande)
+4/ Dans le conteneur docker, les bags sont rejoués en mode paquet et traduit par le noeud rslidar_sdk qui expose le topic rslidar_points au format XYZRT, Ci-après un extrait du message sensor_msgs/msg/PointCloud2 @ 1746907151.236000000 sec
+sec 
+163 
+
+nsec 
+103953000
+
+frame_id 
+"rslidar"
+ 
+height 
+92
+ 
+width 
+96
+ 
+name 
+"x"
+ 
+offset 
+0
+ 
+datatype 
+7
+ 
+count 
+1
+ 
+name 
+"y"
+ 
+offset 
+4
+ 
+datatype 
+7
+ 
+count 
+1
+ 
+name 
+"z"
+ 
+offset 
+8
+ 
+datatype 
+7
+ 
+count 
+1
+ 
+name 
+"intensity"
+ 
+offset 
+12
+ 
+datatype 
+7
+ 
+count 
+1
+ 
+name 
+"ring"
+ 
+offset 
+16
+ 
+datatype 
+4
+ 
+count 
+1
+ 
+name 
+"timestamp"
+ 
+offset 
+18
+ 
+datatype 
+8
+ 
+count 
+1
+ 
+is_bigendian 
+false
+ 
+point_step 
+26
+ 
+row_step 
+2496
+ 
+data 
+Uint8Array (229632)
+ [207, 121, 217, 63, 13, 209, 40, 189, 252, 144, 175, 61, 0, 0, 186, 66, 0, 0, 70, 234, …]
+is_dense 
+false
+
+5/ Le Robosense Airy 96 est un lidar hémisphérique à 360° avec une FOV de 90° de 0° à 90° (https://www.robosense.ai/en/rslidar/Airy) avec une fréquence de rotation de 10 Hz
+
+6/ Le code source de RESPLE est disponible sous le github suivant : https://github.com/ASIG-X/RESPLE
+
+7/ Tu m'as déja aidé à ajouter le code nécessaire dans RESPLE.cpp et Mapping.cpp pour prendre en charge le Airy 96.
+Tu as opéré de la manière suivante selon mes instructions et le code se compile avec colcon
+- rajouter la prise en charge du robosense airy 96 comme pour le Ouster dans RESPLE(rclcpp::Node::SharedPtr& nh)  dans RESPLE.cpp
+- déclarer un  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_ouster; mais pour le robosense Airy 96
+- écrire une class buff pour le robosense airy 96 en s'insipirant de class OusterBuff : public MappingBase<pcl::PointXYZINormal> dans mapping.cpp
+- intégrer la prise en charge du robosense airy 96 dans int main(int argc, char** argv) dans mapping.cpp
+- le fichier yaml config_airy96.yaml décrivant le robosense airy 96 est disponible et je peux te le fournir à la demande. Je l'ai écrit avec ton aide dans un précédent chat. On s'est inspiré du config_eee02.yaml destiné à l'Ouster.
+
+8/ Tu as suivi les instructions suivantes pour arriver au résultat. Le code que tu vas me fournir pour gérer le robosense airy96 doit etre le plus simple possible, avoir une syntaxe et une architecture qui colle au maximum au code qui a été écrit pour l'OUSTER afin de limiter les erreurs de compilation, les bugs et faciliter la compréhension et la relecture. L'idée n'est pas d'innover mais de faire le strict minimum nécessaire pour gérer le robosense Airy 96
+
+9/ Je te demande de ne rien inventer, s'il te manque des informations tu n'inventes pas, tu me demandes les fichiers source comme le Dockerfile, les fichiers cpp, les yaml ou les fichiers .h...
+
+10/ Je te demande de structurer tes réponses pour que nous puissions faire cette intégration étape par étape. Je préfère que tu me donnes des portions de code directement à copier-coller et de manière générale une fonction entière et pas de petit bloc au milieu d'une fonction car je risque de faire des erreurs d'indentation dans le code.
+
+Ressources disponibles : 
+Github du robosense rslidar_sdk : https://github.com/RoboSense-LiDAR/rslidar_sdk
+Github du noeud ROS2 RESPLE : https://github.com/ASIG-X/RESPLE
+Papier de recherche sur RESPLE : https://arxiv.org/abs/2504.11580
+
+Je peux te fournir à ta demande les fichiers cpp, dockerfile, yaml, .h, arborescence du projet, topics dispo dans les bags des jeux de tests ou de mes bags Airy 96.
+
+
+
+
+
+
+    fov_up: 90.0                # FOV vertical supérieur (°)
+    fov_down: 0.0               # FOV vertical inférieur (°)
+    rotation_rate: 10.0         # vitesse de rotation (Hz)
+    resolution_h: 0.4           # résolution angulaire horizontale (°)
+    resolution_v: 0.947
