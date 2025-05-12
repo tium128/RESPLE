@@ -561,92 +561,91 @@ private:
 
 // Callback pour le Robosense Airy96, au format XYZIRT
 // Callback pour le Robosense Airy96, au format XYZIRT
-void airy96LidarCallback(const sensor_msgs::msg::PointCloud2::SharedPtr airy_msg_in)
-{
-    // 1) On récupère la config Airy96
-    std::string name = "Airy96";
-    const LidarConfig& lidar = lidars.at(name);  // q_lb, t_lb, etc. :contentReference[oaicite:0]{index=0}
-
-    // 2) Nuage PCL de sortie pour stocker les points traités
-    pcl::PointCloud<pcl::PointXYZINormal>::Ptr pc_last(new pcl::PointCloud<pcl::PointXYZINormal>());
-
-    // 3) Itérateurs ROS2 sur les champs
-    sensor_msgs::PointCloud2ConstIterator<float>   it_x(*airy_msg_in, "x");
-    sensor_msgs::PointCloud2ConstIterator<float>   it_y(*airy_msg_in, "y");
-    sensor_msgs::PointCloud2ConstIterator<float>   it_z(*airy_msg_in, "z");
-    sensor_msgs::PointCloud2ConstIterator<float>   it_intensity(*airy_msg_in, "intensity");
-    sensor_msgs::PointCloud2ConstIterator<double>  it_time(*airy_msg_in, "timestamp");
-
-    // 4) Timestamp de début de scan (en ns)
-    int64_t time_begin = rclcpp::Time(airy_msg_in->header.stamp).nanoseconds();
-
-    // 5) Variables pour filtrage temporel
-    static int64_t last_t_ns = time_begin;
-    int64_t          max_ofs_ns = 0;
-    float            blind     = lidar.blind;
-    unsigned int     idx       = 0;
-
-    // 6) Parcours de tous les points
-    for (; it_x != it_x.end(); ++it_x, ++it_y, ++it_z, ++it_intensity, ++it_time, ++idx)
+    void airy96LidarCallback(const sensor_msgs::msg::PointCloud2::SharedPtr airy_msg_in)
     {
-        // 6.1) Sous-échantillonnage
-        if (idx % point_filter_num != 0) continue;
+        // 1) On récupère la config Airy96
+        const std::string name = "Airy96";
+        const LidarConfig& lidar = lidars.at(name);  // contient q_lb, t_lb, blind, etc.
 
-        // 6.2) Lecture des coordonnées dans le repère capteur
-        pcl::PointXYZINormal pt;
-        pt.x = *it_x;
-        pt.y = *it_y;
-        pt.z = *it_z;
+        // 2) Nuage PCL de sortie pour stocker les points traités
+        pcl::PointCloud<pcl::PointXYZINormal>::Ptr pc_last(
+            new pcl::PointCloud<pcl::PointXYZINormal>());
 
-        // ── 6.2.b) Passage capteur (rslidar) → base_link via q_lb, t_lb ──
+        // 3) Itérateurs ROS2 sur les champs
+        sensor_msgs::PointCloud2ConstIterator<float>  it_x(*airy_msg_in, "x");
+        sensor_msgs::PointCloud2ConstIterator<float>  it_y(*airy_msg_in, "y");
+        sensor_msgs::PointCloud2ConstIterator<float>  it_z(*airy_msg_in, "z");
+        sensor_msgs::PointCloud2ConstIterator<float>  it_intensity(*airy_msg_in, "intensity");
+        // timestamp présent mais on n'en tiendra pas compte point‐par‐point
+        sensor_msgs::PointCloud2ConstIterator<double> it_time(*airy_msg_in, "timestamp");
+
+        // 4) Timestamp de début de scan (en ns)
+        int64_t time_begin = rclcpp::Time(airy_msg_in->header.stamp).nanoseconds();
+
+        // 5) Variables auxiliaires
+        static int64_t last_t_ns = time_begin;
+        const float     blind    = lidar.blind;
+        unsigned int    idx      = 0;
+
+        // 6) Parcours de tous les points
+        for ( ; it_x != it_x.end();
+            ++it_x, ++it_y, ++it_z,
+            ++it_intensity, ++it_time, ++idx)
         {
-                    // Extrinsèques : lidar.q_lb est un Eigen::Quaternion<double>
-                    // On le convertit en float pour Eigen::Quaternionf
-                    Eigen::Quaternionf Q_body = lidar.q_lb.cast<float>();
-                    // Et la translation t_lb reste un std::vector<double>
-                    Eigen::Vector3f T_body(
-                            static_cast<float>(lidar.t_lb[0]),
-                            static_cast<float>(lidar.t_lb[1]),
-                            static_cast<float>(lidar.t_lb[2])
-                    );
-                    Eigen::Vector3f P_sensor(pt.x, pt.y, pt.z);
-                    Eigen::Vector3f P_body = Q_body * P_sensor + T_body;
-                    pt.x = P_body.x();
-                    pt.y = P_body.y();
-                    pt.z = P_body.z();
+            // 6.1) Sous-échantillonnage
+            if (idx % point_filter_num != 0) {
+                continue;
             }
-        // ───────────────────────────────────────────────────────────────────
 
-        // 6.3) Conversion du temps relatif en nanosecondes
-        double   dt_s    = *it_time;                          // s
-        int64_t  ofs_ns = static_cast<int64_t>(dt_s * 1e9);   // ns
+            // 6.2) Lecture des coordonnées dans le repère capteur
+            pcl::PointXYZINormal pt;
+            pt.x = *it_x;
+            pt.y = *it_y;
+            pt.z = *it_z;
 
-        // 6.4) Stockage de la durée du balayage (en ms) et de la reflectivité
-        pt.intensity = static_cast<float>(ofs_ns / 1e6f);     // ms pour MappingBase
-        pt.curvature  = *it_intensity;                        // reflectivité
+            // 6.2.b) Transformer rslidar → base_link via q_lb, t_lb
+            {
+                // q_lb est Eigen::Quaternion<double>
+                Eigen::Quaternionf Q_body = lidar.q_lb.cast<float>();
+                Eigen::Vector3f    T_body(
+                    static_cast<float>(lidar.t_lb[0]),
+                    static_cast<float>(lidar.t_lb[1]),
+                    static_cast<float>(lidar.t_lb[2])
+                );
+                Eigen::Vector3f P_sensor(pt.x, pt.y, pt.z);
+                Eigen::Vector3f P_body   = Q_body * P_sensor + T_body;
+                pt.x = P_body.x();
+                pt.y = P_body.y();
+                pt.z = P_body.z();
+            }
 
-        // 6.5) Filtrage temporel et spatial
-        if (pt.intensity < 0.0f)                                 continue;
-        if (pt.x*pt.x + pt.y*pt.y + pt.z*pt.z <= blind*blind)    continue;
-        if (time_begin + ofs_ns <= last_t_ns)                    continue;
+            // 6.3) On force intensity à 0 (pas de timestamp point-par-point)
+            pt.intensity = 0.0f;
+            // 6.4) Reflectivité
+            pt.curvature = *it_intensity;
 
-        // 6.6) Ajout du point
-        pc_last->points.push_back(pt);
-        max_ofs_ns = std::max(max_ofs_ns, ofs_ns);
+            // 6.5) Filtrage spatial uniquement
+            const float d2 = pt.x*pt.x + pt.y*pt.y + pt.z*pt.z;
+            if (d2 <= blind*blind) {
+                continue;
+            }
+
+            // 6.6) Ajout au nuage
+            pc_last->points.push_back(pt);
+        }
+
+        // 7) Stockage thread-safe dans le buffer de RESPLE
+        {
+            LidarData& lidar_buffs = lidars_data.at(name);
+            std::lock_guard<std::mutex> lock(lidar_buffs.mtx_pc);
+            lidar_buffs.pc_buff.push_back(pc_last->points);
+            // on pousse le début de scan (pas d'offset interne)
+            lidar_buffs.t_buff.push_back(time_begin);
+        }
+
+        // 8) Mise à jour du dernier timestamp global
+        last_t_ns = time_begin;
     }
-
-    // 7) Stockage thread-safe dans le buffer de RESPLE
-    LidarData& lidar_buffs = lidars_data.at(name);
-    {
-        std::lock_guard<std::mutex> lock(lidar_buffs.mtx_pc);
-        lidar_buffs.pc_buff.push_back(pc_last->points);
-        // → on pousse la fin du balayage, pas time_begin seul
-        lidar_buffs.t_buff.push_back(time_begin + max_ofs_ns);
-    }
-
-    // 8) Mise à jour du dernier timestamp global
-    last_t_ns = time_begin + max_ofs_ns;
-}
 
 
     void livoxMid360BoxiCallback(const sensor_msgs::msg::PointCloud2::SharedPtr livox_msg_in)
