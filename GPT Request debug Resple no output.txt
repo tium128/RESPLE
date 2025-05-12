@@ -154,3 +154,76 @@ Je peux te fournir à ta demande les fichiers cpp, dockerfile, yaml, .h, arbores
     rotation_rate: 10.0         # vitesse de rotation (Hz)
     resolution_h: 0.4           # résolution angulaire horizontale (°)
     resolution_v: 0.947
+
+
+ros2 run resple RESPLE --ros-args --log-level debug
+
+
+
+
+Problème
+Vous calculez bien scan_start_ns et pt_ns (le timestamp de chaque point), mais vous ne retranscrivez jamais scan_start_ns dans le champ ROS header.stamp de vos nuages. En code, affecter directement un int64_t à header.stamp ne produit pas un builtin_interfaces::msg::Time valide, et dans la chaîne ROS le Time reste à zéro. Résultat : tous vos messages ont un stamp à 0 → filtrés ou ignorés en aval.
+
+1. Correction dans Mapping.cpp
+Ancien (extrait)
+cpp
+Copy
+Edit
+// 5. Conservation du frame et du timestamp global
+this->pc_last->header.frame_id = this->frame_id;
+this->pc_last->header.stamp    = scan_start_ns;
+Nouveau
+Remplacez ces lignes par soit de copier-coller le header ROS d’origine, soit de construire correctement un rclcpp::Time :
+
+cpp
+Copy
+Edit
+// 5a) Copier le header d’origine (simple et sûr)
+this->pc_last->header = msg->header;
+this->pc_last->header.frame_id = this->frame_id;
+
+// 5b) (optionnel) si vous préférez partir de scan_start_ns :
+rclcpp::Time scan_start_time(scan_start_ns);
+this->pc_last->header.stamp = scan_start_time;
+this->pc_last->header.frame_id = this->frame_id;
+Faites de même après le downsampling pour pc_last_ds juste avant de le pousser dans le buffer :
+
+cpp
+Copy
+Edit
+// juste après filter(...)
+this->pc_last_ds->header = this->pc_last->header;
+Ainsi, tous vos nuages auront un header.stamp correct (non nul), ce qui permettra à RESPLE et à vos tools downstream de les traiter normalement.
+
+2. Correction dans RESPLE.cpp
+Lors de la publication de /current_scan (dans la méthode qui publie le nuage traité), vérifiez que vous réaffectez bien le header du PCL converti :
+
+cpp
+Copy
+Edit
+// Extrait hypothétique de RESPLE.cpp
+sensor_msgs::msg::PointCloud2 out_msg;
+pcl::toROSMsg(*pc_processed, out_msg);
+
+// Ancien (si header stamp non mis à jour)
+// out_msg.header.stamp = ???;
+
+// Nouveau : recopier le header d’entrée stocké ou générer un Time valide
+out_msg.header = pc_processed->header;  
+// ou bien, si vous avez stocké scan_start_time ailleurs :
+// out_msg.header.stamp = scan_start_time;  
+
+publisher_current_scan_->publish(out_msg);
+Avec ces deux corrections, vos nuages auront enfin un timestamp non nul et la qualité (filtrage/registration) de RESPLE ne sera plus parasitée par des stamps à 0.
+
+Étapes finales
+
+Appliquez ces changements, recompilez (colcon build).
+
+Relancez en offline (--clock + use_sim_time: true).
+
+Vérifiez dans ros2 topic echo /current_scan que le champ header.stamp est non nul et croissant.
+
+Observez la densité et la carte globale qui devrait maintenant apparaître sur /global_map.
+
+N’hésitez pas si vous remarquez encore un souci de timestamp ou de publication !

@@ -13,6 +13,7 @@
       lidar_type: "Airy96"
       scan_line: 96
       blind: 0.5
+      decimation: 1
       q_lb: [1.0, 0.0, 0.0, 0.0]
       t_lb: [0.0, 0.0, 0.0]
       w_pt: 0.01
@@ -26,9 +27,9 @@
 
     # ─── Paramètres généraux de RESPLE ─────────────
     knot_hz: 100
-    ds_scan_voxel: 0.5
-    point_filter_num: 3
-    nn_thresh: 0.5
+    ds_scan_voxel: 0.2
+    point_filter_num: 1
+    nn_thresh: 0.3
     coeff_cov: 3.0
     num_nn: 8
 

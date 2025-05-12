@@ -32,7 +32,7 @@ def generate_launch_description():
             emulate_tty=True,
             output='screen',
             parameters=[config_yaml],
-            arguments=['--ros-args','--log-level','debug']
+            arguments=['--ros-args','--log-level','warn']
         ),
 
         # 3) Noeud Mapping
@@ -43,6 +43,6 @@ def generate_launch_description():
             emulate_tty=True,
             output='screen',
             parameters=[config_yaml],
-            arguments=['--ros-args','--log-level','warn']
+            arguments=['--ros-args','--log-level','debug']
         ),
     ])

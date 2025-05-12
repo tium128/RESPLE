@@ -233,8 +233,11 @@ class Airy96Buff : public MappingBase<pcl::PointXYZINormal>
             }
 
             // 5. Conservation du frame et du timestamp global
+            //   PCLHeader::stamp attend un double en secondes, pas un ROS Header
             this->pc_last->header.frame_id = this->frame_id;
-            this->pc_last->header.stamp    = scan_start_ns;
+            this->pc_last->header.stamp    = static_cast<double>(scan_start_ns) * 1e-9;
+
+
 
             // 6. Suppression des NaN éventuels
             std::vector<int> indices;
@@ -248,8 +251,8 @@ class Airy96Buff : public MappingBase<pcl::PointXYZINormal>
             this->pc_last_ds->clear();
             ds_filter_each_scan.filter(*this->pc_last_ds);
 
-            this->pc_last_ds->header.frame_id = this->frame_id;
-            this->pc_last_ds->header.stamp    = scan_start_ns;
+            // On peut copier le PCLHeader correctement typé
+            this->pc_last_ds->header = this->pc_last->header;
 
             // 9. Verrou pour ajouter en toute sécurité au buffer partagé
             std::lock_guard<std::mutex> lock(mtx);
